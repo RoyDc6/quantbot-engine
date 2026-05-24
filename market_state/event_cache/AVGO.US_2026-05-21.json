@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 10.0,
+  "event_type": "none",
+  "event_summary": "Slightly bullish short-term sentiment",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment\\_score\": 10, \"event\\_type\": \"none\", \"summary\": \"Slightly bullish short-term sentiment\", \"confidence\": 0.6}\n\nThe short-term market sentiment for AVGO.US is slightly bullish, with a sentiment score of 10. The stock has experienced a slight downward trend in the past five days, but the latest volume is 0.88x, indicating a relatively stable trading volume. The latest RSI14 value is 57.8, which is close to the neutral region. There are no recent significant signals or events detected.\n\nP",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 8106,
+  "timestamp": "2026-05-21T09:50:47.112727"
+}

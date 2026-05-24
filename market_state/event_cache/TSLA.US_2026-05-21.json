@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 5.0,
+  "event_type": "none",
+  "event_summary": "Slightly bullish with mild RSI oversold signal",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment_score\": 5, \"event_type\": \"none\", \"summary\": \"Slightly bullish with mild RSI oversold signal\", \"confidence\": 0.6}\n\nThe sentiment score is slightly positive (5 out of 100) due to the recent price decrease, which might indicate a buying opportunity for some traders. However, the RSI value of 30.1 suggests that the stock is slightly oversold, which could lead to a short-term rebound. The event type is \"none\" as there are no significant momentum shifts, volume anomalies, reversal signals",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 7220,
+  "timestamp": "2026-05-21T09:50:28.783918"
+}

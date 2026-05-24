@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Currently, GOOGL.US is in a neutral state with a slight upward trend, as indicated by its recent price movements and RSI14. However, there are no significant recent signals or volume anomalies to suggest a strong momentum shift or reversal.",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"Currently, GOOGL.US is in a neutral state with a slight upward trend, as indicated by its recent price movements and RSI14. However, there are no significant recent signals or volume anomalies to suggest a strong momentum shift or reversal.\", \"confidence\": 0.5}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 6731,
+  "timestamp": "2026-05-13T21:35:58.926205"
+}

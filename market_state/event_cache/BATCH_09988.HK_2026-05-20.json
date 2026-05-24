@@ -1,0 +1,10 @@
+{
+  "sentiment_score": -60.0,
+  "event_type": "reversal_signal",
+  "event_summary": "超卖状态，可能出现反弹",
+  "confidence": 0.7,
+  "llm_raw": "{\"00700.HK\":{\"sentiment_score\":80,\"event_type\":\"none\",\"summary\":\"多头趋势持续，短期看多\",\"confidence\":0.8},\"09988.HK\":{\"sentiment_score\":-60,\"event_type\":\"reversal_signal\",\"summary\":\"超卖状态，可能出现反弹\",\"confidence\":0.7},\"03690.HK\":{\"sentiment_score\":70,\"event_type\":\"momentum_shift\",\"summary\":\"上涨动能增强，短期看多\",\"confidence\":0.85},\"SPY.US\":{\"sentiment_score\":-40,\"event_type\":\"none\",\"summary\":\"回调趋势中，短期看空\",\"confidence\":0.75},\"BTC.US\":{\"sentiment_score\":90,\"event_type\":\"volume_anomaly\",\"summary\":\"多头趋势强劲，成交量放大\",\"confidence",
+  "llm_model": "meta/llama-4-maverick-17b-128e-instruct",
+  "llm_latency_ms": 2673,
+  "timestamp": "2026-05-20T18:04:19.146298"
+}

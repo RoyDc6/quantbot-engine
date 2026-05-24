@@ -1,0 +1,153 @@
+{
+  "generated_at": "2026-05-09T14:01:26.020355",
+  "total_samples": 104,
+  "regime_results": [
+    {
+      "regime": "BEAR",
+      "n": 37,
+      "avg_return": -0.17875413067603305,
+      "ic_fusion": -0.27169023229302103,
+      "ic_llm": -0.03437766384953796,
+      "ic_fm": -0.22725199611044747,
+      "ic_confidence": -0.18288900791906545,
+      "llm_incremental": -0.04443823618257356,
+      "hit_rate_fusion": 0.40540540540540543,
+      "hit_rate_llm": 0.8333333333333334,
+      "suggested_weight": 0.1
+    },
+    {
+      "regime": "BULL",
+      "n": 49,
+      "avg_return": 1.741675490543464,
+      "ic_fusion": -0.036901731142718684,
+      "ic_llm": 0.0449852705165016,
+      "ic_fm": -0.07184462470992546,
+      "ic_confidence": 0.10743093490530807,
+      "llm_incremental": 0.03494289356720678,
+      "hit_rate_fusion": 0.5306122448979592,
+      "hit_rate_llm": 0.6,
+      "suggested_weight": 0.5
+    },
+    {
+      "regime": "CRAB",
+      "n": 18,
+      "avg_return": 0.18061345745480784,
+      "ic_fusion": -0.24017523278480535,
+      "ic_llm": 0.454400431140116,
+      "ic_fm": -0.3812682002490259,
+      "ic_confidence": NaN,
+      "llm_incremental": 0.14109296746422056,
+      "hit_rate_fusion": 0.2222222222222222,
+      "hit_rate_llm": 0.8571428571428571,
+      "suggested_weight": 0.5
+    }
+  ],
+  "overall": {
+    "ic_fusion": -0.12930041520607058,
+    "ic_llm": 0.17461837383220746,
+    "ic_fm": -0.09821391704768626
+  },
+  "zero_inflation": {
+    "total": 104,
+    "zero": 86,
+    "nonzero": 18,
+    "zero_pct": 82.7,
+    "per_symbol": {
+      "00388.HK": {
+        "total": 10,
+        "zero": 10,
+        "zero_pct": 100.0
+      },
+      "00700.HK": {
+        "total": 10,
+        "zero": 4,
+        "zero_pct": 40.0
+      },
+      "01024.HK": {
+        "total": 9,
+        "zero": 9,
+        "zero_pct": 100.0
+      },
+      "03690.HK": {
+        "total": 9,
+        "zero": 4,
+        "zero_pct": 44.44444444444444
+      },
+      "06055.HK": {
+        "total": 9,
+        "zero": 9,
+        "zero_pct": 100.0
+      },
+      "09618.HK": {
+        "total": 6,
+        "zero": 3,
+        "zero_pct": 50.0
+      },
+      "09988.HK": {
+        "total": 10,
+        "zero": 10,
+        "zero_pct": 100.0
+      },
+      "AAPL.US": {
+        "total": 3,
+        "zero": 3,
+        "zero_pct": 100.0
+      },
+      "ADBE.US": {
+        "total": 3,
+        "zero": 3,
+        "zero_pct": 100.0
+      },
+      "AMD.US": {
+        "total": 3,
+        "zero": 3,
+        "zero_pct": 100.0
+      },
+      "INTC.US": {
+        "total": 3,
+        "zero": 3,
+        "zero_pct": 100.0
+      },
+      "META.US": {
+        "total": 3,
+        "zero": 3,
+        "zero_pct": 100.0
+      },
+      "MSFT.US": {
+        "total": 3,
+        "zero": 3,
+        "zero_pct": 100.0
+      },
+      "NFLX.US": {
+        "total": 3,
+        "zero": 3,
+        "zero_pct": 100.0
+      },
+      "NVDA.US": {
+        "total": 3,
+        "zero": 3,
+        "zero_pct": 100.0
+      },
+      "ORCL.US": {
+        "total": 3,
+        "zero": 3,
+        "zero_pct": 100.0
+      },
+      "QCOM.US": {
+        "total": 3,
+        "zero": 3,
+        "zero_pct": 100.0
+      },
+      "SPY.US": {
+        "total": 8,
+        "zero": 4,
+        "zero_pct": 50.0
+      },
+      "TSLA.US": {
+        "total": 3,
+        "zero": 3,
+        "zero_pct": 100.0
+      }
+    }
+  }
+}

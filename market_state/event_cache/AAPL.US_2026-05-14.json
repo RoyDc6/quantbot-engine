@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Neutral market sentiment with low volatility",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"Neutral market sentiment with low volatility\", \"confidence\": 0.5}\n\nThe stock is currently in a CRAB (Continuous Rejection of Ascending Prices at Breakout) market state, indicating a neutral to slightly bearish market sentiment. The latest price of AAPL.US is $273.25, with a RSI14 of 48.6, suggesting a balanced buying and selling pressure. The stock has experienced mixed daily returns in the past five days, with a slight downward trend. Th",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 7070,
+  "timestamp": "2026-05-14T22:42:18.636938"
+}

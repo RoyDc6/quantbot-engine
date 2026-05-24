@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 10.0,
+  "event_type": "none",
+  "event_summary": "Neutral to slightly bullish short-term sentiment for QCOM.US",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment_score\": 10, \"event_type\": \"none\", \"summary\": \"Neutral to slightly bullish short-term sentiment for QCOM.US\", \"confidence\": 0.6}\n\nThe stock has been experiencing mixed movements in the past five days, with a slight uptrend in the last two days. The RSI14 value of 55.0 indicates a neutral to slightly bullish situation. However, there are no significant recent signals or events to drive the market sentiment.\n\nConfidence: 0.6\nThe confidence level is moderate due to the mixed recent pric",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 5560,
+  "timestamp": "2026-05-21T09:51:34.529048"
+}

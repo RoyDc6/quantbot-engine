@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "中性, 连跌但振幅有限",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"中性, 连跌但振幅有限\", \"confidence\": 0.5}\n\n* 最新价格下跌但振幅有限，RSI指数接近底部，未来可能有反弹可能\n* 近期连跌但未触及支撑位，市场情绪尚未明确\n* 缺乏明确信号变化，建议悉心关注",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 5983,
+  "timestamp": "2026-05-21T09:51:21.940834"
+}

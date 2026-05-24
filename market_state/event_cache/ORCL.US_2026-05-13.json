@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 1.0,
+  "event_type": "none",
+  "event_summary": "Slight bullish sentiment with RSI above 60",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 1, \"event_type\": \"none\", \"summary\": \"Slight bullish sentiment with RSI above 60\", \"confidence\": 0.5}\n\nThe sentiment score is slightly positive (1) because the RSI is above 60, indicating a slightly bullish sentiment. The event type is \"none\" because there are no significant events or signals in the provided data. The summary is \"Slight bullish sentiment with RSI above 60\" and the confidence level is 0.5.\n\nPlease note that this analysis is based on limited data and may not be",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 10678,
+  "timestamp": "2026-05-13T21:37:08.872327"
+}

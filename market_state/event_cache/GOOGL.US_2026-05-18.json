@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 5.0,
+  "event_type": "none",
+  "event_summary": "Slightly bullish short-term sentiment with RSI at 91.7",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment_score\": 5, \"event_type\": \"none\", \"summary\": \"Slightly bullish short-term sentiment with RSI at 91.7\", \"confidence\": 0.6}\n\nThe sentiment score is slightly positive (5 out of 100) due to the RSI being extremely high (91.7), indicating an overbought condition. However, the recent price action and volume do not show any significant momentum shifts, volume anomalies, or reversal signals. Therefore, the event type is set to \"none\". The summary is \"Slightly bullish short-term sentiment wit",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 6039,
+  "timestamp": "2026-05-18T22:08:53.050755"
+}

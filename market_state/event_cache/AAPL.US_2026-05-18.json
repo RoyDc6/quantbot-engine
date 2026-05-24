@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 10.0,
+  "event_type": "none",
+  "event_summary": "Neutral to slightly bullish short-term sentiment for AAPL.US",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 10, \"event_type\": \"none\", \"summary\": \"Neutral to slightly bullish short-term sentiment for AAPL.US\", \"confidence\": 0.5}\n\nThe stock has been experiencing mild fluctuations in the past five days, with a slight downward trend. However, the RSI is at 50.2, indicating a neutral position. The latest volume is at 0.64x, which is close to the average, and there are no significant recent signals. Overall, the short-term sentiment remains relatively stable, leaning slightly towards bu",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 7930,
+  "timestamp": "2026-05-18T22:08:23.908898"
+}

@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 70.0,
+  "event_type": "momentum_shift",
+  "event_summary": "The market for 01024.HK is currently bullish, with a positive short-term trend and a momentum shift. The stock has been consistently rising for the past 3 days, with the latest close at 91.85, representing a 6.31% increase. The RSI14 is at 80.2, indicating overbought conditions. Although there are no recent reversal signals, the high RSI and increasing volume suggest a potential momentum shift in the near future.",
+  "confidence": 0.5,
+  "llm_raw": " {\n\"sentiment_score\": 70,\n\"event_type\": \"momentum_shift\",\n\"summary\": \"The market for 01024.HK is currently bullish, with a positive short-term trend and a momentum shift. The stock has been consistently rising for the past 3 days, with the latest close at 91.85, representing a 6.31% increase. The RSI14 is at 80.2, indicating overbought conditions. Although there are no recent reversal signals, the high RSI and increasing volume suggest a potential momentum shift in the near future.\",\n\"confidence",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 6473,
+  "timestamp": "2026-05-22T10:13:28.756291"
+}

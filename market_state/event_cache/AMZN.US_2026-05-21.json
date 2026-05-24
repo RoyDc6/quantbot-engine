@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 1.0,
+  "event_type": "none",
+  "event_summary": "Slightly bullish with recent slight uptick",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment_score\": 1, \"event_type\": \"none\", \"summary\": \"Slightly bullish with recent slight uptick\", \"confidence\": 0.6}\n\nComments:\n\n1. The stock has been in a slight uptrend over the past 5 days, with a positive closing price on 3 out of 5 days.\n2. The RSI14 is at 65.7, which is slightly above the neutral midpoint of 50, indicating a slight bullishness.\n3. The latest price-volume behavior shows a slightly higher volume compared to the 5-day average, which could be a sign of increased interest ",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 7387,
+  "timestamp": "2026-05-21T09:49:45.652633"
+}

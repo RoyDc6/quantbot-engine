@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Currently, there is no clear short-term market sentiment for AVGO.US with a CRAB market state, near-neutral RSI14, and insignificant price movements.",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"Currently, there is no clear short-term market sentiment for AVGO.US with a CRAB market state, near-neutral RSI14, and insignificant price movements.\", \"confidence\": 0.5}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 3785,
+  "timestamp": "2026-05-15T22:34:45.900808"
+}

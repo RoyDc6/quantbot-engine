@@ -1,0 +1,230 @@
+{
+  "date": "2026-05-21",
+  "market": "HK",
+  "generated_at": "2026-05-21T16:53:23.255878",
+  "signals": [
+    {
+      "symbol": "00700.HK",
+      "market": "HK",
+      "date": "2026-05-21",
+      "close": 657.7,
+      "data_source": "Futu",
+      "fusion_level": "REDUCED",
+      "fusion_score": 21.5,
+      "fusion_confidence": 0.455,
+      "target_position": 0.2,
+      "risk": "MEDIUM",
+      "warnings": [
+        "置信度 0.46 < 0.60 (等级: REDUCED)",
+        "融合得分 21.5 < 30 (等级: REDUCED)"
+      ],
+      "reasoning": "融合=REDUCED(+21.5) | VP=above_box→BUY | LLM偏向=+10 | [Neutral to slightly bullish se]",
+      "rsi_daily": 68.6,
+      "rsi_weekly": 90.6,
+      "market_state": "BULL",
+      "weights_used": {
+        "xmm": 0.6,
+        "vp": 0.25,
+        "llm": 0.15
+      },
+      "raw_scores": {
+        "xmm": 0.0,
+        "vp": 80.0,
+        "llm": 10.0
+      }
+    },
+    {
+      "symbol": "09618.HK",
+      "market": "HK",
+      "date": "2026-05-21",
+      "close": 134.59065,
+      "data_source": "Futu",
+      "fusion_level": "REDUCED",
+      "fusion_score": 20.8,
+      "fusion_confidence": 0.47,
+      "target_position": 0.2,
+      "risk": "MEDIUM",
+      "warnings": [
+        "置信度 0.47 < 0.60 (等级: REDUCED)",
+        "融合得分 20.8 < 30 (等级: REDUCED)"
+      ],
+      "reasoning": "融合=REDUCED(+20.8) | VP=above_box→BUY | LLM偏向=+5 | [slightly bullish]",
+      "rsi_daily": 59.3,
+      "rsi_weekly": 59.6,
+      "market_state": "BULL",
+      "weights_used": {
+        "xmm": 0.6,
+        "vp": 0.25,
+        "llm": 0.15
+      },
+      "raw_scores": {
+        "xmm": 0.0,
+        "vp": 80.0,
+        "llm": 5.0
+      }
+    },
+    {
+      "symbol": "09988.HK",
+      "market": "HK",
+      "date": "2026-05-21",
+      "close": 177.0,
+      "data_source": "Futu",
+      "fusion_level": "REDUCED",
+      "fusion_score": 20.0,
+      "fusion_confidence": 0.455,
+      "target_position": 0.2,
+      "risk": "MEDIUM",
+      "warnings": [
+        "置信度 0.46 < 0.60 (等级: REDUCED)",
+        "融合得分 20.0 < 30 (等级: REDUCED)"
+      ],
+      "reasoning": "融合=REDUCED(+20.0) | VP=above_box→BUY",
+      "rsi_daily": 75.3,
+      "rsi_weekly": 95.9,
+      "market_state": "BULL",
+      "weights_used": {
+        "xmm": 0.6,
+        "vp": 0.25,
+        "llm": 0.15
+      },
+      "raw_scores": {
+        "xmm": 0.0,
+        "vp": 80.0,
+        "llm": 0.0
+      }
+    },
+    {
+      "symbol": "01024.HK",
+      "market": "HK",
+      "date": "2026-05-21",
+      "close": 84.6,
+      "data_source": "Futu",
+      "fusion_level": "REDUCED",
+      "fusion_score": 20.0,
+      "fusion_confidence": 0.455,
+      "target_position": 0.2,
+      "risk": "MEDIUM",
+      "warnings": [
+        "置信度 0.46 < 0.60 (等级: REDUCED)",
+        "融合得分 20.0 < 30 (等级: REDUCED)"
+      ],
+      "reasoning": "融合=REDUCED(+20.0) | VP=above_box→BUY",
+      "rsi_daily": 66.9,
+      "rsi_weekly": 64.9,
+      "market_state": "BULL",
+      "weights_used": {
+        "xmm": 0.6,
+        "vp": 0.25,
+        "llm": 0.15
+      },
+      "raw_scores": {
+        "xmm": 0.0,
+        "vp": 80.0,
+        "llm": 0.0
+      }
+    },
+    {
+      "symbol": "06055.HK",
+      "market": "HK",
+      "date": "2026-05-21",
+      "close": 45.0,
+      "data_source": "Futu",
+      "fusion_level": "REDUCED",
+      "fusion_score": 20.0,
+      "fusion_confidence": 0.455,
+      "target_position": 0.2,
+      "risk": "MEDIUM",
+      "warnings": [
+        "置信度 0.46 < 0.60 (等级: REDUCED)",
+        "融合得分 20.0 < 30 (等级: REDUCED)"
+      ],
+      "reasoning": "融合=REDUCED(+20.0) | VP=above_box→BUY",
+      "rsi_daily": 59.6,
+      "rsi_weekly": 77.9,
+      "market_state": "BULL",
+      "weights_used": {
+        "xmm": 0.6,
+        "vp": 0.25,
+        "llm": 0.15
+      },
+      "raw_scores": {
+        "xmm": 0.0,
+        "vp": 80.0,
+        "llm": 0.0
+      }
+    },
+    {
+      "symbol": "00388.HK",
+      "market": "HK",
+      "date": "2026-05-21",
+      "close": 435.48,
+      "data_source": "Futu",
+      "fusion_level": "HOLD",
+      "fusion_score": 5.8,
+      "fusion_confidence": 0.32,
+      "target_position": 0.0,
+      "risk": "MEDIUM",
+      "warnings": [
+        "融合得分低",
+        "综合置信度低",
+        "融合得分低",
+        "综合置信度低"
+      ],
+      "reasoning": "融合=HOLD(+5.8) | VP=inside_box→BUY | LLM偏向=+5 | [Neutral to slightly bullish]",
+      "rsi_daily": 51.8,
+      "rsi_weekly": 40.3,
+      "market_state": "BULL",
+      "weights_used": {
+        "xmm": 0.6,
+        "vp": 0.25,
+        "llm": 0.15
+      },
+      "raw_scores": {
+        "xmm": 0.0,
+        "vp": 20.0,
+        "llm": 5.0
+      }
+    },
+    {
+      "symbol": "03690.HK",
+      "market": "HK",
+      "date": "2026-05-21",
+      "close": 104.5,
+      "data_source": "Futu",
+      "fusion_level": "HOLD",
+      "fusion_score": 5.2,
+      "fusion_confidence": 0.32,
+      "target_position": 0.0,
+      "risk": "MEDIUM",
+      "warnings": [
+        "融合得分低",
+        "综合置信度低",
+        "融合得分低",
+        "综合置信度低"
+      ],
+      "reasoning": "融合=HOLD(+5.2) | VP=inside_box→BUY | LLM偏向=+1 | [slightly bullish]",
+      "rsi_daily": 48.0,
+      "rsi_weekly": 33.4,
+      "market_state": "BULL",
+      "weights_used": {
+        "xmm": 0.6,
+        "vp": 0.25,
+        "llm": 0.15
+      },
+      "raw_scores": {
+        "xmm": 0.0,
+        "vp": 20.0,
+        "llm": 1.0
+      }
+    }
+  ],
+  "orders": [],
+  "summary": {
+    "total": 7,
+    "strong_buy": 0,
+    "buy": 0,
+    "hold": 2,
+    "sell": 0,
+    "reduced": 5
+  }
+}

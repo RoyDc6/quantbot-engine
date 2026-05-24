@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 1.0,
+  "event_type": "none",
+  "event_summary": "Slightly bullish with RSI above 50 and recent positive close",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment_score\": 1, \"event_type\": \"none\", \"summary\": \"Slightly bullish with RSI above 50 and recent positive close\", \"confidence\": 0.6}\n\nThe sentiment score is slightly positive at 1, as the RSI is above 50, indicating a slight bullish sentiment. However, there are no significant recent signals or anomalies, so the event type is set to \"none\". The summary is \"Slightly bullish with RSI above 50 and recent positive close\" with a confidence level of 0.6.",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 7550,
+  "timestamp": "2026-05-15T22:34:11.669894"
+}

@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Neutral short-term sentiment for QCOM.US with low volume and close to RSI 42.8",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"Neutral short-term sentiment for QCOM.US with low volume and close to RSI 42.8\", \"confidence\": 0.5}\n\nThe sentiment score is 0, which indicates a neutral market sentiment for QCOM.US. The event type is \"none\" as there are no significant momentum shifts, volume anomalies, reversal signals, or breakouts in recent data. The summary is \"Neutral short-term sentiment for QCOM.US with low volume and close to RSI 42.8\" with a confidence level of 0",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 12634,
+  "timestamp": "2026-05-16T13:44:35.560602"
+}

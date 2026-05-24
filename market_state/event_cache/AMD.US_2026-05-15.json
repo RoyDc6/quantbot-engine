@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Neutral market sentiment with slight bullish bias",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"Neutral market sentiment with slight bullish bias\", \"confidence\": 0.5}\n\nThe sentiment score is close to zero, indicating a neutral market sentiment with a slight bullish bias. The recent price movement has been relatively stable, with no significant momentum shifts observed. The RSI14 value of 61.5 suggests that the stock is not overbought or oversold. The latest volume is lower than the average, and there is no volume anomaly detected. A",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 7221,
+  "timestamp": "2026-05-15T22:34:39.898922"
+}

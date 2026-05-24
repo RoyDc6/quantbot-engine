@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 50.0,
+  "event_type": "none",
+  "event_summary": "BTC currently in a bull market with steady upward momentum",
+  "confidence": 0.8,
+  "llm_raw": " {\"sentiment\\_score\": 50, \"event\\_type\": \"none\", \"summary\": \"BTC currently in a bull market with steady upward momentum\", \"confidence\": 0.8}\n\nThe sentiment score is 50, indicating a slightly positive outlook. There are no clear reversal signals or volume anomalies. The market is in a bull state with a steady upward trend, as shown by the positive percentage change in the latest price and the last 5 days. The RSI14 is at 92.9, indicating that the market is overbought, but this does not necessaril",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 21690,
+  "timestamp": "2026-05-20T17:41:32.308423"
+}

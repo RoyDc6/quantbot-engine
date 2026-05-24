@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Currently, Adobe's short-term market sentiment is neutral with a CRAB market state, small price fluctuations, and an RSI14 of 55.3. The recent K-line features no significant anomalies in volume or price movement.",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"Currently, Adobe's short-term market sentiment is neutral with a CRAB market state, small price fluctuations, and an RSI14 of 55.3. The recent K-line features no significant anomalies in volume or price movement.\", \"confidence\": 0.5}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 4296,
+  "timestamp": "2026-05-13T21:37:31.423287"
+}

@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Currently, there is insufficient data for both the price action and signal changes of the symbol TEST_EMPTY in the crab market state.",
+  "confidence": 0.9,
+  "llm_raw": " {\n\"sentiment_score\": 0,\n\"event_type\": \"none\",\n\"summary\": \"Currently, there is insufficient data for both the price action and signal changes of the symbol TEST_EMPTY in the crab market state.\",\n\"confidence\": 0.9\n}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 3746,
+  "timestamp": "2026-05-21T11:02:24.612190"
+}

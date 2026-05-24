@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Neutral short-term sentiment with slight bullish bias",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"Neutral short-term sentiment with slight bullish bias\", \"confidence\": 0.5}\n\nThe short-term sentiment for MSFT.US is neutral with a slight bullish bias. The RSI14 is at 87.0, indicating that the stock might be overbought. However, there are no significant recent signals or events. The price has had small fluctuations in the past five days, with the latest price at 485.99, a 0.86% change. The latest volume is at 0.48x the average, which is ",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 8632,
+  "timestamp": "2026-05-14T22:42:37.880985"
+}

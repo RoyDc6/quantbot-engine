@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 1.0,
+  "event_type": "none",
+  "event_summary": "Slightly bullish short-term sentiment",
+  "confidence": 0.55,
+  "llm_raw": " {\"sentiment_score\": 1, \"event_type\": \"none\", \"summary\": \"Slightly bullish short-term sentiment\", \"confidence\": 0.55}\n\nComments:\n\n1. The latest price of GOOGL.US is 313.63, and the RSI14 is 63.0, indicating a slightly bullish short-term sentiment.\n2. There are no significant momentum shifts, volume anomalies, reversal signals, or breakouts in recent K-line data.\n3. The stock has experienced a small price increase (1.48) in the most recent trading day, which might be a positive sign for short-ter",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 9716,
+  "timestamp": "2026-05-15T22:34:01.871083"
+}

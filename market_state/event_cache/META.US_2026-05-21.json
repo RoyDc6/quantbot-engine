@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 5.0,
+  "event_type": "none",
+  "event_summary": "Neutral to slightly bullish short-term sentiment for META.US",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment_score\": 5, \"event_type\": \"none\", \"summary\": \"Neutral to slightly bullish short-term sentiment for META.US\", \"confidence\": 0.6}\n\nThe sentiment score is slightly positive due to the recent small price increase and the RSI being close to 50, indicating a neutral trend. However, the recent volume is not significantly high, and there are no strong reversal or breakout signals. Therefore, the event type is \"none,\" and the confidence level is moderate.",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 5764,
+  "timestamp": "2026-05-21T09:50:09.942646"
+}

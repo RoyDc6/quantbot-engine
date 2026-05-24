@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Neutral short-term sentiment with slight bearish bias",
+  "confidence": 0.5,
+  "llm_raw": " Based on the provided data, here is the analysis:\n\n```json\n{\n  \"sentiment_score\": 0,\n  \"event_type\": \"none\",\n  \"summary\": \"Neutral short-term sentiment with slight bearish bias\",\n  \"confidence\": 0.5\n}\n```\n\nExplanation:\n\n1. sentiment\\_score: The RSI14 is 30.8, which is closer to the oversold region (30). However, there are no significant positive signals. Also, the stock has been declining for the past three days. Considering these factors, the sentiment\\_score is set to 0, indicating a neutral ",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 6210,
+  "timestamp": "2026-05-18T14:38:10.446598"
+}

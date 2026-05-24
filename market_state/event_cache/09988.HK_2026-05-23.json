@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 80.0,
+  "event_type": "momentum_shift",
+  "event_summary": "The stock is currently in a bull market with strong momentum, showing a steady uptrend and reaching a high RSI of 82.2. However, a slight correction in price may indicate a potential momentum shift.",
+  "confidence": 1,
+  "llm_raw": " {\n\"sentiment_score\": 80,\n\"event_type\": \"momentum_shift\",\n\"summary\": \"The stock is currently in a bull market with strong momentum, showing a steady uptrend and reaching a high RSI of 82.2. However, a slight correction in price may indicate a potential momentum shift.\",\n\"confidence\": 75\n}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 4765,
+  "timestamp": "2026-05-23T12:19:11.702529"
+}

@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 5.0,
+  "event_type": "none",
+  "event_summary": "Slightly bullish short-term sentiment with low volume",
+  "confidence": 0.5,
+  "llm_raw": " Based on the provided data, here is the analysis:\n\n```json\n{\n  \"sentiment_score\": 5,\n  \"event_type\": \"none\",\n  \"summary\": \"Slightly bullish short-term sentiment with low volume\",\n  \"confidence\": 0.5\n}\n```\n\nExplanation:\n\n1. sentiment\\_score: The RSI (Relative Strength Index) is at 91.9, which is quite high, indicating a strong bullish sentiment. However, the recent volume has been low, which might suggest a lack of strong conviction. Considering these factors, I set the sentiment\\_score to 5 (sl",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 9289,
+  "timestamp": "2026-05-13T21:37:31.716027"
+}

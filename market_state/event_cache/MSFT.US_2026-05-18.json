@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 5.0,
+  "event_type": "none",
+  "event_summary": "Moderately bullish short-term sentiment for MSFT.US",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment_score\": 5, \"event_type\": \"none\", \"summary\": \"Moderately bullish short-term sentiment for MSFT.US\", \"confidence\": 0.6}\n\nThe sentiment score is positive (5 out of 100) due to the slightly increasing prices and RSI value close to 70, indicating overbought conditions. However, the recent volume is not significantly higher than usual, and there are no strong reversal signals or momentum shifts. Therefore, the event type is set to \"none\". The summary is \"Moderately bullish short-term sent",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 8024,
+  "timestamp": "2026-05-18T22:08:44.818829"
+}

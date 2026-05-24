@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 10.0,
+  "event_type": "none",
+  "event_summary": "Moderately bullish short-term sentiment for AMZN.US",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment_score\": 10, \"event_type\": \"none\", \"summary\": \"Moderately bullish short-term sentiment for AMZN.US\", \"confidence\": 0.6}\n\nComments:\n\n1. sentiment_score: The RSI14 value of 84.8 indicates that the stock is overbought, but the recent price action has not shown any significant correction. This results in a slightly bullish sentiment score.\n2. event_type: There are no clear reversal signals, volume anomalies, or momentum shifts in the provided data.\n3. summary: Moderately bullish short-te",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 11193,
+  "timestamp": "2026-05-16T13:41:49.717472"
+}

@@ -1,0 +1,18 @@
+{
+  "highest_prices": {
+    "AAPL.US": 308.40999999999997
+  },
+  "entry_prices": {
+    "AAPL.US": 267.887
+  },
+  "portfolio_peak": 1025528.271,
+  "stop_timestamps": {},
+  "latest_atr": {
+    "US.AMZN": 0.0268,
+    "US.AMD": 0.049,
+    "US.NFLX": 0.0337,
+    "US.INTC": 0.0543,
+    "US.META": 0.0322
+  },
+  "last_update": "2026-05-22T21:35:29.312915"
+}

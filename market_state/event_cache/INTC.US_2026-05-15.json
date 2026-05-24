@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "中性，小幅震荡",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"中性，小幅震荡\", \"confidence\": 0.5}\n\n* 最新价格和振幅：当前价格为 37.30，振幅为 3.86%，表明近期存在小幅震荡。\n* RSI 指数：RSI14 为 50.4，处于中性区间，不显示明显的看涨或看跌情绪。\n* 连涨天数：连涨 3 天，但涨幅较小，无法判断为明显的看涨信号。\n* 最新量比：最新量比为 1.05x，",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 14909,
+  "timestamp": "2026-05-15T22:35:30.327393"
+}

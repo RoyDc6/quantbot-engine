@@ -1,0 +1,10 @@
+{
+  "sentiment_score": -40.0,
+  "event_type": "none",
+  "event_summary": "短期中性偏空，因近5日收益连续为负",
+  "confidence": 0.6,
+  "llm_raw": "{\"00388.HK\":{\"sentiment_score\":-50,\"event_type\":\"reversal_signal\",\"summary\":\"短期看空，因RSI超卖且近5日收益为负\",\"confidence\":0.7},\"09618.HK\":{\"sentiment_score\":80,\"event_type\":\"momentum_shift\",\"summary\":\"短期看多，因RSI处于高位且最近一天收益为正\",\"confidence\":0.8},\"01024.HK\":{\"sentiment_score\":-40,\"event_type\":\"none\",\"summary\":\"短期中性偏空，因近5日收益连续为负\",\"confidence\":0.6},\"06055.HK\":{\"sentiment_score\":-90,\"event_type\":\"reversal_signal\",\"summary\":\"短期强烈看空，因RSI超卖且近5日收益为负\",\"confidence\":0.9}}",
+  "llm_model": "meta/llama-4-maverick-17b-128e-instruct",
+  "llm_latency_ms": 5575,
+  "timestamp": "2026-05-20T19:37:12.491754"
+}

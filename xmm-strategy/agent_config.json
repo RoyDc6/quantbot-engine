@@ -1,0 +1,104 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "strategy": "XMM (徐小明) 量化策略",
+    "description": "Agent 配置约束 — 定义 agent 对策略文件的访问权限、接口调用约束和执行规则"
+  },
+
+  "locked_files": {
+    "description": "以下文件已设为只读(+R)，Agent 不得修改、重命名或删除。",
+    "files": [
+      {
+        "path": "E:\\quant\\xmm-strategy\\modules\\engine.py",
+        "role": "信号融合引擎 — 13条规则决策矩阵",
+        "permission": "read-only",
+        "verified_at": "2026-05-19"
+      },
+      {
+        "path": "E:\\quant\\xmm-strategy\\modules\\structure.py",
+        "role": "MACD结构/钝化计算",
+        "permission": "read-only",
+        "verified_at": "2026-05-19"
+      },
+      {
+        "path": "E:\\quant\\xmm-strategy\\modules\\td_sequence.py",
+        "role": "TD9序列计算",
+        "permission": "read-only",
+        "verified_at": "2026-05-19"
+      }
+    ]
+  },
+
+  "api_endpoints": {
+    "description": "Agent 获取策略信号的唯一安全接口，不得绕过。",
+    "primary": {
+      "module": "E:\\quant\\xmm-strategy\\signal_api.py",
+      "functions": {
+        "get_signal": {
+          "signature": "get_signal(df: pd.DataFrame) -> dict",
+          "returns": "signal / position_size / reason / ...",
+          "notes": "NaN保护、列校验、异常捕获 → 全部HOLD兜底"
+        },
+        "get_strategy_params": {
+          "signature": "get_strategy_params() -> dict",
+          "returns": "只读参数快照",
+          "notes": "Agent 可读不可写"
+        }
+      },
+      "forbidden": [
+        "from modules.engine import XMMStrategy",
+        "直接实例化 XMMStrategy",
+        "绕过 signal_api 调用 analyze()"
+      ]
+    },
+    "execution": {
+      "module": "E:\\quant\\xmm-strategy\\simulate_trades.py",
+      "description": "回测/执行层，纯规则驱动，零 LLM",
+      "allowed_imports": [
+        "from signal_api import get_signal",
+        "from simulate_trades import run_backtest, simulate_trades, calc_stats"
+      ]
+    }
+  },
+
+  "parameter_constraints": {
+    "description": "策略参数（硬编码于 signal_api.py，Agent 不得修改）：",
+    "params": {
+      "short_period":       { "value": 25, "mutable": false, "description": "短期EMA周期(H)" },
+      "long_period":        { "value": 90, "mutable": false, "description": "长期EMA周期(H)" },
+      "macd_fast":          { "value": 12, "mutable": false, "description": "MACD快线" },
+      "macd_slow":          { "value": 26, "mutable": false, "description": "MACD慢线" },
+      "macd_signal":        { "value": 9,  "mutable": false, "description": "MACD信号线" },
+      "td_period":          { "value": 4,  "mutable": false, "description": "TD序列周期" },
+      "plateau_confirm_bars": { "value": 3, "mutable": false, "description": "连续钝化确认K线根数" },
+      "struct_threshold":   { "value": 1.01, "mutable": false, "description": "MACD结构确认倍数阈值" }
+    }
+  },
+
+  "protected_directories": {
+    "description": "Agent 不得在这些目录中创建/修改/删除文件（signal_api.py 和 simulate_trades.py 已授权除外）。",
+    "paths": [
+      "E:\\quant\\xmm-strategy\\modules\\"
+    ]
+  },
+
+  "execution_rules": {
+    "description": "Agent 调用策略信号时必须遵守的规则。",
+    "rules": [
+      "必须优先使用 signal_api.get_signal() 获取信号",
+      "不得绕过 signal_api 直接调用 modules.engine.XMMStrategy",
+      "回测必须使用 simulate_trades.run_backtest() 或 simulate_trades.simulate_trades()",
+      "禁止修改策略参数",
+      "所有策略文件（engine.py / structure.py / td_sequence.py）为只读，不得解除只读属性",
+      "agent_config.json 本身为参考配置，Agent 可读不可改"
+    ]
+  },
+
+  "logging": {
+    "description": "signal_api 审计日志配置",
+    "log_dir": "E:\\quant\\xmm-strategy\\logs\\",
+    "log_pattern": "signal_api_YYYYMMDD.log",
+    "log_format": "%(asctime)s | %(levelname)s | %(message)s",
+    "contents": "每次 get_signal() 调用的时间、df_shape、signal、position_size、reason"
+  }
+}

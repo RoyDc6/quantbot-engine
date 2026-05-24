@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": " Currently neutral with low bullish signals",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment\\_score\": 0, \"event\\_type\": \"none\", \"summary\": \" Currently neutral with low bullish signals\", \"confidence\": 0.5}\n\nThe CRM.US market is currently in a bullish state, but the recent K-line features and technical indicators do not provide strong evidence of a clear short-term market sentiment. The latest price is 255.62, with a 2.84% increase in the past day, but the RSI14 is at 42.9, indicating that the stock is not overbought or oversold. There are no recent significant signal changes",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 6156,
+  "timestamp": "2026-05-21T09:51:13.729548"
+}

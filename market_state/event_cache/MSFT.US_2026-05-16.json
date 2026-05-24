@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 1.0,
+  "event_type": "none",
+  "event_summary": "Slightly bullish short-term sentiment for MSFT.US",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment_score\": 1, \"event_type\": \"none\", \"summary\": \"Slightly bullish short-term sentiment for MSFT.US\", \"confidence\": 0.6}\n\nComments:\n\n1. sentiment\\_score: The RSI14 value of 70.0 indicates that the stock is overbought, but the recent price action has not shown any significant bearish signals. Therefore, the sentiment\\_score is slightly positive.\n2. event\\_type: There are no clear signs of a momentum shift, volume anomaly, reversal signal, or breakout in the recent data.\n3. summary: Slight",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 10595,
+  "timestamp": "2026-05-16T13:42:02.528592"
+}

@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Current mood state is neutral with insufficient data",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment\\_score\": 0, \"event\\_type\": \"none\", \"summary\": \"Current mood state is neutral with insufficient data\", \"confidence\": 0.5}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 2582,
+  "timestamp": "2026-05-21T10:50:19.384947"
+}

@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 5.0,
+  "event_type": "none",
+  "event_summary": "slightly bullish",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment\\_score\": 5, \"event\\_type\": \"none\", \"summary\": \"slightly bullish\", \"confidence\": 0.6}\n\nExplanation:\n\n1. sentiment\\_score: The RSI14 value is 73.6, which is closer to 100, indicating a bullish trend. However, the recent price change has been relatively small, so the sentiment score is set to 5, indicating a slightly bullish market sentiment.\n2. event\\_type: Based on the provided data, there are no significant momentum shifts, volume anomalies, reversal signals, or breakouts. Therefore",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 7547,
+  "timestamp": "2026-05-21T09:50:32.613256"
+}

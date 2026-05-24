@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "中性，小幅上�rend, 较低量比和RSI指数",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"中性，小幅上�rend, 较低量比和RSI指数\", \"confidence\": 0.5}\n\n根据09618.HK的最新价格130.50，近5日涨跌[-0.42, 0.0, -0.08, 8.28, 1.79]，最新量比0.18x，最新振幅1.61%以及RSI14为92.7，我们得出以下分析：\n\n1. sentiment_score: 0，表示市场情绪中性，因为最新价格仅上涨1.61%，且RSI14接近1",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 21630,
+  "timestamp": "2026-05-14T09:44:18.167015"
+}

@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Current sentiment status is neutral with insufficient data and no recent signal changes for TEST_OTHER in CRAB market.",
+  "confidence": 0.7,
+  "llm_raw": " {\n\"sentiment_score\": 0,\n\"event_type\": \"none\",\n\"summary\": \"Current sentiment status is neutral with insufficient data and no recent signal changes for TEST_OTHER in CRAB market.\",\n\"confidence\": 0.7\n}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 3177,
+  "timestamp": "2026-05-21T11:02:27.790308"
+}

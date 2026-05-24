@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Currently in a sideways trend with neutral sentiment",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"Currently in a sideways trend with neutral sentiment\", \"confidence\": 0.5}\n\nExplanation:\n\n1. sentiment_score: Based on the provided RSI value of 59.2, which is close to the neutral midpoint of 50, and the recent price action, the sentiment score is 0, indicating a neutral sentiment.\n\n2. event_type: There are no significant momentum shifts, volume anomalies, reversal signals, or breakouts in the recent price action. Therefore, the event typ",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 10288,
+  "timestamp": "2026-05-14T22:42:50.406123"
+}

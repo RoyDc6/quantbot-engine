@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 80.0,
+  "event_type": "momentum_shift",
+  "event_summary": "The stock is currently in a bull market with a strong upward trend, however the RSI14 indicates that it might be overbought and due for a correction.",
+  "confidence": 1,
+  "llm_raw": " {\n\"sentiment_score\": 80,\n\"event_type\": \"momentum_shift\",\n\"summary\": \"The stock is currently in a bull market with a strong upward trend, however the RSI14 indicates that it might be overbought and due for a correction.\",\n\"confidence\": 75\n}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 3864,
+  "timestamp": "2026-05-22T10:12:54.985458"
+}

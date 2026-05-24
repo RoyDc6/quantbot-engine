@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "META.US 当前市场情绪中性，价格波动有限，RSI 指标接近 oversold 区域。",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"META.US 当前市场情绪中性，价格波动有限，RSI 指标接近 oversold 区域。\", \"confidence\": 0.5}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 4076,
+  "timestamp": "2026-05-19T22:46:20.104447"
+}

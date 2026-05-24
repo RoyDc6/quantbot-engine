@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "中性，近期表现平稳",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"中性，近期表现平稳\", \"confidence\": 0.5}\n\nComments:\n- The stock has been trading within a narrow range for the past few days, with a slight upward trend.\n- The RSI value of 69.4 suggests that the stock is not overbought or oversold at the moment.\n- The low trading volume and lack of significant price movements indicate a lack of strong sentiment or events driving the price.\n- Therefore, the sentiment score is 0, event type is \"none\", and the summar",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 7163,
+  "timestamp": "2026-05-13T09:46:13.928206"
+}

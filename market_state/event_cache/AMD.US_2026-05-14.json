@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 1.0,
+  "event_type": "none",
+  "event_summary": "Slightly bullish sentiment with RSI above 60",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment_score\": 1, \"event_type\": \"none\", \"summary\": \"Slightly bullish sentiment with RSI above 60\", \"confidence\": 0.6}\n\nThe current sentiment score for AMD.US is slightly bullish (1) as the RSI is above 60, indicating that the stock might be overbought. However, there are no significant short-term events or signals detected, so the event type is set to \"none\". The summary of the current situation is \"Slightly bullish sentiment with RSI above 60\" with a confidence level of 0.6.",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 6520,
+  "timestamp": "2026-05-14T22:43:28.341920"
+}

@@ -1,0 +1,4 @@
+futu-api>=10.0
+pandas
+numpy
+matplotlib

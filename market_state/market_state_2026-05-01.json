@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-05-01T18:49:57.511983",
+  "symbol": "SPY.US",
+  "market_state": "BULL",
+  "vix_regime": "CANDIDATE",
+  "trend": "BULL",
+  "momentum": "BULLISH",
+  "vol_level": "LOW",
+  "vix_detail": {
+    "regime": "CANDIDATE",
+    "vxx_price": 29.78,
+    "rsi_day": 41.9,
+    "rsi_week": 33.6,
+    "trend": "falling",
+    "pct_rank": 25.0
+  },
+  "trend_detail": {
+    "trend": "BULL",
+    "momentum": "BULLISH",
+    "vol_level": "LOW",
+    "price": 718.66,
+    "sma20": 695.26,
+    "sma50": 678.72,
+    "price_vs_sma20": 3.37,
+    "price_vs_sma50": 5.89,
+    "rsi_day": 67.2,
+    "rsi_week": 74.2,
+    "atr_pct": 0.97,
+    "atr_pct_rank": 5.0
+  },
+  "advice": {
+    "action": "BUY",
+    "position": "高仓位（60-80%）",
+    "stop_loss": "保守（-10%）",
+    "description": "低VIX + 上升趋势，适合持有或加仓"
+  }
+}

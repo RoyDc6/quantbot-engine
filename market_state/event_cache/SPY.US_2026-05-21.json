@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 10.0,
+  "event_type": "none",
+  "event_summary": "Slight bullish sentiment with a small upward trend in SPY.US",
+  "confidence": 0.6,
+  "llm_raw": " {\n\"sentiment_score\": 10,\n\"event_type\": \"none\",\n\"summary\": \"Slight bullish sentiment with a small upward trend in SPY.US\",\n\"confidence\": 0.6\n}\n\nExplanation:\n\n1. sentiment_score: The latest price is slightly higher than the previous day, and the RSI14 is around 55, which is close to the neutral zone. However, the recent consecutive down days might indicate some selling pressure. Overall, the market sentiment is slightly bullish.\n\n2. event_type: There is no significant momentum shift, volume anoma",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 7788,
+  "timestamp": "2026-05-21T13:59:52.401041"
+}

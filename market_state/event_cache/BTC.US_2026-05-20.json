@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Neutral sentiment with insufficient data",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment\\_score\": 0, \"event\\_type\": \"none\", \"summary\": \"Neutral sentiment with insufficient data\", \"confidence\": 0.5}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 5323,
+  "timestamp": "2026-05-20T18:03:34.642433"
+}

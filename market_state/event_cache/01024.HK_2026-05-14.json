@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 10.0,
+  "event_type": "none",
+  "event_summary": "Slightly bullish short-term sentiment with RSI at 80.1",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment_score\": 10, \"event_type\": \"none\", \"summary\": \"Slightly bullish short-term sentiment with RSI at 80.1\", \"confidence\": 0.6}\n\nThe sentiment score is 10, indicating a slightly bullish short-term sentiment. This is based on the RSI value of 80.1, which suggests that the stock is overbought. However, there are no significant recent signals or volume anomalies to support a stronger momentum shift or reversal signal. The confidence level for this analysis is 0.6.",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 8978,
+  "timestamp": "2026-05-14T12:58:25.237217"
+}

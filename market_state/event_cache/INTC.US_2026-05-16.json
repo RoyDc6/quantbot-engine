@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": " Currently in a sideways trend with neutral sentiment",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \" Currently in a sideways trend with neutral sentiment\", \"confidence\": 0.5}\n\nThe stock has been in a relatively tight range for the past few days, with a slight positive bias. The RSI is at 64.7, which is above 50, indicating that the stock is overbought but not significantly. The latest volume is at 0.87x, which is close to the average volume, and there are no significant volume anomalies. Additionally, there are no recent significant pri",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 11183,
+  "timestamp": "2026-05-16T13:44:20.726813"
+}

@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 10.0,
+  "event_type": "none",
+  "event_summary": "The current sentiment for ADBE.US is slightly bullish, with a small uptick in price and RSI indicating some positive momentum.",
+  "confidence": 1,
+  "llm_raw": " {\n\"sentiment_score\": 10,\n\"event_type\": \"none\",\n\"summary\": \"The current sentiment for ADBE.US is slightly bullish, with a small uptick in price and RSI indicating some positive momentum.\",\n\"confidence\": 70\n}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 2848,
+  "timestamp": "2026-05-22T10:15:21.564323"
+}

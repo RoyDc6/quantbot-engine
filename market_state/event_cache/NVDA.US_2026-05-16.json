@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Neutral short-term sentiment for NVDA.US with RSI overbought and minor downward trend",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"Neutral short-term sentiment for NVDA.US with RSI overbought and minor downward trend\", \"confidence\": 0.5}\n\nThe sentiment_score is 0, indicating a neutral short-term sentiment for NVDA.US. The RSI (Relative Strength Index) is 82.2, which is overbought, suggesting a potential momentum shift. However, there is a minor downward trend with three consecutive down days. The recent volume is not showing any significant anomalies. Therefore, the ",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 9087,
+  "timestamp": "2026-05-16T13:42:39.923569"
+}

@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 20.0,
+  "event_type": "none",
+  "event_summary": "Neutral to slightly bullish short-term sentiment for AMD.US",
+  "confidence": 0.6,
+  "llm_raw": " {\n\"sentiment_score\": 20,\n\"event_type\": \"none\",\n\"summary\": \"Neutral to slightly bullish short-term sentiment for AMD.US\",\n\"confidence\": 0.6\n}\n\nExplanation:\n\n1. sentiment_score: The sentiment score is slightly positive (20 out of 100) due to the recent slight uptick in the stock price, but it's not significantly bullish.\n\n2. event_type: There are no clear signs of momentum shifts, volume anomalies, reversal signals, or breakouts based on the provided data.\n\n3. summary: The current short-term sent",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 7787,
+  "timestamp": "2026-05-22T10:14:50.919484"
+}

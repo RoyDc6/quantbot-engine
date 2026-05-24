@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 1.0,
+  "event_type": "none",
+  "event_summary": "Slightly bullish",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 1, \"event_type\": \"none\", \"summary\": \"Slightly bullish\", \"confidence\": 0.5}\n\nExplanation:\n\n1. sentiment\\_score: The RSI (Relative Strength Index) is at 50.2, which is considered neutral. However, the stock has had slightly more positive days than negative ones in the past five days, with a slight uptick in price and a lower-than-average volume. This suggests a slightly bullish sentiment.\n2. event\\_type: There are no clear signs of momentum shift, volume anomaly, reversal sign",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 11514,
+  "timestamp": "2026-05-16T13:41:36.290583"
+}

@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 1.0,
+  "event_type": "none",
+  "event_summary": "Slight bullish bias in short-term sentiment",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 1, \"event_type\": \"none\", \"summary\": \"Slight bullish bias in short-term sentiment\", \"confidence\": 0.5}\n\nThe short-term sentiment score for AVGO.US is slightly bullish, with a sentiment score of 1. This is based on the RSI14 value of 81.4, which indicates overbought conditions. However, there are no significant recent signals or volume anomalies. The latest price is 345.38, with a modest 1.29% change over the past five days. The latest volume is at 0.36x the average, which is ",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 9503,
+  "timestamp": "2026-05-16T13:43:18.060918"
+}

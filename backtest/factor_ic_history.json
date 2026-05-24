@@ -1,0 +1,16 @@
+{
+  "snapshots": [
+    {
+      "date": "2026-05-09",
+      "lookback_days": 14,
+      "total_samples": 104,
+      "llm_nonzero_samples": 18,
+      "zero_pct": 82.7,
+      "ic_llm": 0.1746,
+      "ic_llm_nonzero": 0.2445,
+      "ic_fm": -0.0982,
+      "ic_fusion": -0.1293,
+      "llm_incremental": 0.2728
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 1.0,
+  "event_type": "none",
+  "event_summary": "Slightly bullish short-term sentiment for AMD.US",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment_score\": 1, \"event_type\": \"none\", \"summary\": \"Slightly bullish short-term sentiment for AMD.US\", \"confidence\": 0.6}\n\nComments:\n\n1. sentiment_score: The RSI14 value of 64.0 indicates a slightly overbought condition, but it is not significantly high to warrant a bearish outlook. The recent price movement has been slightly positive, contributing to a slightly bullish short-term sentiment.\n2. event_type: none\n3. summary: Slightly bullish short-term sentiment for AMD.US\n\nPlease note that ",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 14368,
+  "timestamp": "2026-05-13T21:36:53.795848"
+}

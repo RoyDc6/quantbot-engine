@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 10.0,
+  "event_type": "none",
+  "event_summary": "The market for 09618.HK is currently bullish, with a slight uptick in the latest price and a RSI14 of 52.7 indicating a neutral to slightly bullish outlook. However, the recent volume and amplitude are not particularly noteworthy.",
+  "confidence": 1,
+  "llm_raw": " {\n\"sentiment_score\": 10,\n\"event_type\": \"none\",\n\"summary\": \"The market for 09618.HK is currently bullish, with a slight uptick in the latest price and a RSI14 of 52.7 indicating a neutral to slightly bullish outlook. However, the recent volume and amplitude are not particularly noteworthy.\",\n\"confidence\": 70\n}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 4783,
+  "timestamp": "2026-05-23T12:19:20.827929"
+}

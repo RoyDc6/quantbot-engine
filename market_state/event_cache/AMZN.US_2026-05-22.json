@@ -1,0 +1,10 @@
+{
+  "sentiment_score": -80.0,
+  "event_type": "reversal_signal",
+  "event_summary": "The current sentiment for AMZN.US is negative with a score of -80, indicating a bearish outlook. This assessment is based on the stock's recent price action, which has shown a series of daily decreases, along with an extremely low RSI value of 21.9. These factors suggest that the stock may be oversold and could experience a reversal in the short term.",
+  "confidence": 0.75,
+  "llm_raw": " {\n\"sentiment_score\": -80,\n\"event_type\": \"reversal_signal\",\n\"summary\": \"The current sentiment for AMZN.US is negative with a score of -80, indicating a bearish outlook. This assessment is based on the stock's recent price action, which has shown a series of daily decreases, along with an extremely low RSI value of 21.9. These factors suggest that the stock may be oversold and could experience a reversal in the short term.\",\n\"confidence\": 0.75\n}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 5174,
+  "timestamp": "2026-05-22T10:14:13.550146"
+}

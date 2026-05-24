@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "中性，连续9天下跌但振幅小且RSI接近 oversold",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment\\_score\": 0, \"event\\_type\": \"none\", \"summary\": \"中性，连续9天下跌但振幅小且RSI接近 oversold\", \"confidence\": 0.5}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 2839,
+  "timestamp": "2026-05-21T09:50:56.066098"
+}

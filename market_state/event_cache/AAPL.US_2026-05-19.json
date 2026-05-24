@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "Neutral short-term sentiment with slight bearish tendencies",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"Neutral short-term sentiment with slight bearish tendencies\", \"confidence\": 0.5}\n\nThe sentiment score is close to neutral (0) due to the lack of significant bullish or bearish signals. The recent price movement has been slightly downward with a 3-day losing streak, but the RSI (Relative Strength Index) is at 44.5, which is not extremely low and still indicates some room for further downward movement. The latest volume is at 0.92x, which i",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 9091,
+  "timestamp": "2026-05-19T22:45:49.602130"
+}

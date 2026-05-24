@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 50.0,
+  "event_type": "none",
+  "event_summary": "Currently, Broadcom Inc. (AVGO.US) is in a bull market with a slight uptrend in the recent 5-day performance. The latest price is 333.19, with a slight decrease in volume and a 2.54% amplitude. The RSI14 is at 1.8, indicating a strong bullish momentum. However, there are no significant recent signals detected.",
+  "confidence": 1,
+  "llm_raw": " {\n\"sentiment_score\": 50,\n\"event_type\": \"none\",\n\"summary\": \"Currently, Broadcom Inc. (AVGO.US) is in a bull market with a slight uptrend in the recent 5-day performance. The latest price is 333.19, with a slight decrease in volume and a 2.54% amplitude. The RSI14 is at 1.8, indicating a strong bullish momentum. However, there are no significant recent signals detected.\",\n\"confidence\": 75\n}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 5461,
+  "timestamp": "2026-05-22T10:24:25.220429"
+}

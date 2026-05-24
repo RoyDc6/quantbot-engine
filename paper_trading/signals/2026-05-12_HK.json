@@ -1,0 +1,575 @@
+{
+  "date": "2026-05-12",
+  "market": "HK",
+  "generated_at": "2026-05-12T16:05:09.236825",
+  "signals": [
+    {
+      "symbol": "00388.HK",
+      "market": "HK",
+      "date": "2026-05-12",
+      "close": 427.0,
+      "data_source": "TickFlow",
+      "fusion_level": "BUY",
+      "fusion_score": 44.7,
+      "fusion_confidence": 0.69,
+      "target_position": 0.5,
+      "risk": "MEDIUM",
+      "warnings": [
+        "周线RSI超买(79.4)"
+      ],
+      "reasoning": "[情绪] Slightly bullish short-term sentiment | mean_reversion_adj[LOW=5%]; momentum_cross[HIGH=77%]; vol_price_convergence[LOW=16%]; mean_reversion_atr[LOW=12%]; momentum_cross_short[MID=70%]; rsi_extreme[HIGH=99%]; volume_spike_reversal[HIGH=99%] | 单系统买入信号 | 融合模型打分118.0(RSI周79.4月50.0) | TA系统RSI=62.1信心50.0%",
+      "fm_signal": "BUY",
+      "fm_score": 118.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 62.1,
+      "rsi_weekly": 79.4,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": -1,
+      "macd_desc": "上MACD",
+      "fractal_type": "BOTTOM",
+      "top_count": 59,
+      "bottom_count": 59,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 375.76,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": -5.2,
+      "llm_factor_summary": "mean_reversion_adj[LOW=5%]; momentum_cross[HIGH=77%]; vol_price_convergence[LOW=16%]; mean_reversion_atr[LOW=12%]; momentum_cross_short[MID=70%]; rsi_extreme[HIGH=99%]; volume_spike_reversal[HIGH=99%]",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "raw": -2.720076,
+          "percentile": 5.2,
+          "note": "价格低于SMA50乖离+高ATR → 超卖买入信号"
+        },
+        "momentum_cross": {
+          "raw": 0.0,
+          "percentile": 77.1,
+          "note": "多周期全跌=超卖买入"
+        },
+        "vol_price_convergence": {
+          "raw": -9.565185,
+          "percentile": 15.6,
+          "note": "放量跌破SMA20=量价背离确认超卖"
+        },
+        "mean_reversion_atr": {
+          "raw": -1.470588,
+          "percentile": 11.5,
+          "note": "跌破SMA20+ATR高=超卖"
+        },
+        "momentum_cross_short": {
+          "raw": 0.0,
+          "percentile": 69.8,
+          "note": "短线1日+5日全跌=超卖买入"
+        },
+        "rsi_extreme": {
+          "raw": 0.0,
+          "percentile": 99,
+          "note": "RSI<30 超卖(正) / RSI>70 超买(负)"
+        },
+        "volume_spike_reversal": {
+          "raw": 0.0,
+          "percentile": 99,
+          "note": "放量大跌=恐慌抛售→潜在反转"
+        }
+      },
+      "market_state": "CRAB",
+      "event_sentiment_score": 1.0,
+      "event_type": "none",
+      "event_summary": "Slightly bullish short-term sentiment",
+      "event_confidence": 0.6,
+      "hard_gate_passed": true,
+      "hard_gate_reason": ""
+    },
+    {
+      "symbol": "09618.HK",
+      "market": "HK",
+      "date": "2026-05-12",
+      "close": 118.6,
+      "data_source": "TickFlow",
+      "fusion_level": "BUY",
+      "fusion_score": 38.1,
+      "fusion_confidence": 0.69,
+      "target_position": 0.5,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "[情绪] Slightly bullish trend with RSI above 70 | mean_reversion_adj[LOW=8%]; momentum_cross[HIGH=72%]; vol_price_convergence[MID=44%]; mean_reversion_atr[MID=43%]; momentum_cross_short[MID=63%]; rsi_extreme[HIGH=98%]; volume_spike_reversal[HIGH=99%] | 单系统买入信号 | 融合模型打分104.0(RSI周59.6月50.0) | TA系统RSI=56.7信心50.0%",
+      "fm_signal": "BUY",
+      "fm_score": 104.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 56.7,
+      "rsi_weekly": 59.6,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": 6,
+      "macd_desc": "0轴震荡",
+      "fractal_type": "BOTTOM",
+      "top_count": 57,
+      "bottom_count": 52,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 104.37,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": -13.6,
+      "llm_factor_summary": "mean_reversion_adj[LOW=8%]; momentum_cross[HIGH=72%]; vol_price_convergence[MID=44%]; mean_reversion_atr[MID=43%]; momentum_cross_short[MID=63%]; rsi_extreme[HIGH=98%]; volume_spike_reversal[HIGH=99%]",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "raw": -2.424454,
+          "percentile": 8.3,
+          "note": "价格低于SMA50乖离+高ATR → 超卖买入信号"
+        },
+        "momentum_cross": {
+          "raw": 0.0,
+          "percentile": 71.9,
+          "note": "多周期全跌=超卖买入"
+        },
+        "vol_price_convergence": {
+          "raw": 0.16431,
+          "percentile": 43.8,
+          "note": "放量跌破SMA20=量价背离确认超卖"
+        },
+        "mean_reversion_atr": {
+          "raw": 0.068365,
+          "percentile": 43.2,
+          "note": "跌破SMA20+ATR高=超卖"
+        },
+        "momentum_cross_short": {
+          "raw": 0.0,
+          "percentile": 63.0,
+          "note": "短线1日+5日全跌=超卖买入"
+        },
+        "rsi_extreme": {
+          "raw": 0.0,
+          "percentile": 98.4,
+          "note": "RSI<30 超卖(正) / RSI>70 超买(负)"
+        },
+        "volume_spike_reversal": {
+          "raw": 0.0,
+          "percentile": 99,
+          "note": "放量大跌=恐慌抛售→潜在反转"
+        }
+      },
+      "market_state": "CRAB",
+      "event_sentiment_score": 1.0,
+      "event_type": "none",
+      "event_summary": "Slightly bullish trend with RSI above 70",
+      "event_confidence": 0.6,
+      "hard_gate_passed": true,
+      "hard_gate_reason": ""
+    },
+    {
+      "symbol": "03690.HK",
+      "market": "HK",
+      "date": "2026-05-12",
+      "close": 84.0,
+      "data_source": "TickFlow",
+      "fusion_level": "BUY",
+      "fusion_score": 35.3,
+      "fusion_confidence": 0.69,
+      "target_position": 0.5,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "[情绪] Slight bullish sentiment with RSI above 70 | mean_reversion_adj[LOW=12%]; momentum_cross[HIGH=74%]; vol_price_convergence[MID=38%]; mean_reversion_atr[MID=38%]; momentum_cross_short[MID=64%]; rsi_extreme[HIGH=88%]; volume_spike_reversal[HIGH=99%] | 单系统买入信号 | 融合模型打分96.0(RSI周48.1月50.0) | TA系统RSI=50.4信心50.0%",
+      "fm_signal": "BUY",
+      "fm_score": 96.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 50.4,
+      "rsi_weekly": 48.1,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": -2,
+      "macd_desc": "0轴震荡",
+      "fractal_type": "BOTTOM",
+      "top_count": 54,
+      "bottom_count": 48,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 73.92,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": -11.6,
+      "llm_factor_summary": "mean_reversion_adj[LOW=12%]; momentum_cross[HIGH=74%]; vol_price_convergence[MID=38%]; mean_reversion_atr[MID=38%]; momentum_cross_short[MID=64%]; rsi_extreme[HIGH=88%]; volume_spike_reversal[HIGH=99%]",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "raw": -0.765383,
+          "percentile": 11.5,
+          "note": "价格低于SMA50乖离+高ATR → 超卖买入信号"
+        },
+        "momentum_cross": {
+          "raw": 0.0,
+          "percentile": 74.5,
+          "note": "多周期全跌=超卖买入"
+        },
+        "vol_price_convergence": {
+          "raw": 0.124518,
+          "percentile": 38.0,
+          "note": "放量跌破SMA20=量价背离确认超卖"
+        },
+        "mean_reversion_atr": {
+          "raw": 0.077055,
+          "percentile": 38.5,
+          "note": "跌破SMA20+ATR高=超卖"
+        },
+        "momentum_cross_short": {
+          "raw": 0.0,
+          "percentile": 63.5,
+          "note": "短线1日+5日全跌=超卖买入"
+        },
+        "rsi_extreme": {
+          "raw": 0.0,
+          "percentile": 88.5,
+          "note": "RSI<30 超卖(正) / RSI>70 超买(负)"
+        },
+        "volume_spike_reversal": {
+          "raw": 0.0,
+          "percentile": 99,
+          "note": "放量大跌=恐慌抛售→潜在反转"
+        }
+      },
+      "market_state": "CRAB",
+      "event_sentiment_score": 1.0,
+      "event_type": "none",
+      "event_summary": "Slight bullish sentiment with RSI above 70",
+      "event_confidence": 0.6,
+      "hard_gate_passed": true,
+      "hard_gate_reason": ""
+    },
+    {
+      "symbol": "06055.HK",
+      "market": "HK",
+      "date": "2026-05-12",
+      "close": 27.94,
+      "data_source": "TickFlow",
+      "fusion_level": "REDUCED",
+      "fusion_score": -23.0,
+      "fusion_confidence": 0.8,
+      "target_position": 0.2,
+      "risk": "MEDIUM",
+      "warnings": [
+        "双系统信号矛盾"
+      ],
+      "reasoning": "[情绪] JSON 解析失败 (增强解析器 v3 无法提取) | mean_reversion_adj[HIGH=99%]; momentum_cross[HIGH=99%]; vol_price_convergence[HIGH=74%]; mean_reversion_atr[HIGH=95%]; momentum_cross_short[HIGH=99%]; rsi_extreme[HIGH=95%]; volume_spike_reversal[HIGH=99%] | 信号矛盾，降仓观望 | 融合模型打分-86.0(RSI周10.2月50.0) | TA系统RSI=28.8信心72.0%",
+      "fm_signal": "SELL",
+      "fm_score": -86.0,
+      "ta_signal": "BUY",
+      "ta_confidence": 0.72,
+      "rsi_daily": 28.8,
+      "rsi_weekly": 10.2,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": -4,
+      "macd_desc": "0轴震荡(底背离)",
+      "fractal_type": "TOP",
+      "top_count": 43,
+      "bottom_count": 41,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 24.59,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": -45.2,
+      "llm_factor_summary": "mean_reversion_adj[HIGH=99%]; momentum_cross[HIGH=99%]; vol_price_convergence[HIGH=74%]; mean_reversion_atr[HIGH=95%]; momentum_cross_short[HIGH=99%]; rsi_extreme[HIGH=95%]; volume_spike_reversal[HIGH=99%]",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "raw": 6.903935,
+          "percentile": 99.0,
+          "note": "价格低于SMA50乖离+高ATR → 超卖买入信号"
+        },
+        "momentum_cross": {
+          "raw": 1.0,
+          "percentile": 99,
+          "note": "多周期全跌=超卖买入"
+        },
+        "vol_price_convergence": {
+          "raw": 1.904072,
+          "percentile": 74.0,
+          "note": "放量跌破SMA20=量价背离确认超卖"
+        },
+        "mean_reversion_atr": {
+          "raw": 2.309914,
+          "percentile": 94.8,
+          "note": "跌破SMA20+ATR高=超卖"
+        },
+        "momentum_cross_short": {
+          "raw": 1.0,
+          "percentile": 99,
+          "note": "短线1日+5日全跌=超卖买入"
+        },
+        "rsi_extreme": {
+          "raw": 0.022362,
+          "percentile": 95.3,
+          "note": "RSI<30 超卖(正) / RSI>70 超买(负)"
+        },
+        "volume_spike_reversal": {
+          "raw": 0.0,
+          "percentile": 99,
+          "note": "放量大跌=恐慌抛售→潜在反转"
+        }
+      },
+      "market_state": "CRAB",
+      "event_sentiment_score": 0.0,
+      "event_type": "none",
+      "event_summary": "JSON 解析失败 (增强解析器 v3 无法提取)",
+      "event_confidence": 0.0,
+      "hard_gate_passed": true,
+      "hard_gate_reason": ""
+    },
+    {
+      "symbol": "00700.HK",
+      "market": "HK",
+      "date": "2026-05-12",
+      "close": 459.6,
+      "data_source": "TickFlow",
+      "fusion_level": "REDUCED",
+      "fusion_score": -32.2,
+      "fusion_confidence": 0.8,
+      "target_position": 0.2,
+      "risk": "MEDIUM",
+      "warnings": [
+        "双系统信号矛盾"
+      ],
+      "reasoning": "[情绪] 中性，小范围震荡 | mean_reversion_adj[HIGH=92%]; momentum_cross[HIGH=99%]; vol_price_convergence[HIGH=88%]; mean_reversion_atr[HIGH=93%]; momentum_cross_short[HIGH=99%]; rsi_extreme[HIGH=95%]; volume_spike_reversal[HIGH=99%] | 信号矛盾，降仓观望 | 融合模型打分-110.0(RSI周29.7月50.0) | TA系统RSI=36.6信心72.0%",
+      "fm_signal": "SELL",
+      "fm_score": -110.0,
+      "ta_signal": "BUY",
+      "ta_confidence": 0.72,
+      "rsi_daily": 36.6,
+      "rsi_weekly": 29.7,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": -2,
+      "macd_desc": "下MACD(底背离)",
+      "fractal_type": "TOP",
+      "top_count": 55,
+      "bottom_count": 50,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 404.45,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": -45.4,
+      "llm_factor_summary": "mean_reversion_adj[HIGH=92%]; momentum_cross[HIGH=99%]; vol_price_convergence[HIGH=88%]; mean_reversion_atr[HIGH=93%]; momentum_cross_short[HIGH=99%]; rsi_extreme[HIGH=95%]; volume_spike_reversal[HIGH=99%]",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "raw": 3.978992,
+          "percentile": 92.2,
+          "note": "价格低于SMA50乖离+高ATR → 超卖买入信号"
+        },
+        "momentum_cross": {
+          "raw": 1.0,
+          "percentile": 99,
+          "note": "多周期全跌=超卖买入"
+        },
+        "vol_price_convergence": {
+          "raw": 31.576721,
+          "percentile": 88.0,
+          "note": "放量跌破SMA20=量价背离确认超卖"
+        },
+        "mean_reversion_atr": {
+          "raw": 2.392059,
+          "percentile": 93.2,
+          "note": "跌破SMA20+ATR高=超卖"
+        },
+        "momentum_cross_short": {
+          "raw": 1.0,
+          "percentile": 99,
+          "note": "短线1日+5日全跌=超卖买入"
+        },
+        "rsi_extreme": {
+          "raw": 0.0,
+          "percentile": 94.8,
+          "note": "RSI<30 超卖(正) / RSI>70 超买(负)"
+        },
+        "volume_spike_reversal": {
+          "raw": 0.0,
+          "percentile": 99,
+          "note": "放量大跌=恐慌抛售→潜在反转"
+        }
+      },
+      "market_state": "CRAB",
+      "event_sentiment_score": 0.0,
+      "event_type": "none",
+      "event_summary": "中性，小范围震荡",
+      "event_confidence": 0.5,
+      "hard_gate_passed": true,
+      "hard_gate_reason": ""
+    },
+    {
+      "symbol": "01024.HK",
+      "market": "HK",
+      "date": "2026-05-12",
+      "close": 52.85,
+      "data_source": "TickFlow",
+      "fusion_level": "SELL",
+      "fusion_score": -48.0,
+      "fusion_confidence": 0.69,
+      "target_position": 0.3,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "[情绪] Neutral to slightly bullish sentiment | mean_reversion_adj[MID=31%]; momentum_cross[MID=68%]; vol_price_convergence[LOW=3%]; mean_reversion_atr[LOW=4%]; momentum_cross_short[MID=62%]; rsi_extreme[HIGH=88%]; volume_spike_reversal[HIGH=99%] | 单系统卖出信号 | 融合模型打分-96.0(RSI周61.8月50.0) | TA系统RSI=63.1信心50.0%",
+      "fm_signal": "SELL",
+      "fm_score": -96.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 63.1,
+      "rsi_weekly": 61.8,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": -1,
+      "macd_desc": "0轴震荡",
+      "fractal_type": "TOP",
+      "top_count": 48,
+      "bottom_count": 50,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 46.51,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": -0.6,
+      "llm_factor_summary": "mean_reversion_adj[MID=31%]; momentum_cross[MID=68%]; vol_price_convergence[LOW=3%]; mean_reversion_atr[LOW=4%]; momentum_cross_short[MID=62%]; rsi_extreme[HIGH=88%]; volume_spike_reversal[HIGH=99%]",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "raw": -0.82503,
+          "percentile": 30.7,
+          "note": "价格低于SMA50乖离+高ATR → 超卖买入信号"
+        },
+        "momentum_cross": {
+          "raw": 0.0,
+          "percentile": 67.7,
+          "note": "多周期全跌=超卖买入"
+        },
+        "vol_price_convergence": {
+          "raw": -17.658713,
+          "percentile": 3.1,
+          "note": "放量跌破SMA20=量价背离确认超卖"
+        },
+        "mean_reversion_atr": {
+          "raw": -2.953139,
+          "percentile": 4.2,
+          "note": "跌破SMA20+ATR高=超卖"
+        },
+        "momentum_cross_short": {
+          "raw": 0.0,
+          "percentile": 61.5,
+          "note": "短线1日+5日全跌=超卖买入"
+        },
+        "rsi_extreme": {
+          "raw": 0.0,
+          "percentile": 88.5,
+          "note": "RSI<30 超卖(正) / RSI>70 超买(负)"
+        },
+        "volume_spike_reversal": {
+          "raw": 0.0,
+          "percentile": 99,
+          "note": "放量大跌=恐慌抛售→潜在反转"
+        }
+      },
+      "market_state": "CRAB",
+      "event_sentiment_score": 1.0,
+      "event_type": "none",
+      "event_summary": "Neutral to slightly bullish sentiment",
+      "event_confidence": 0.6,
+      "hard_gate_passed": true,
+      "hard_gate_reason": ""
+    },
+    {
+      "symbol": "09988.HK",
+      "market": "HK",
+      "date": "2026-05-12",
+      "close": 133.6,
+      "data_source": "TickFlow",
+      "fusion_level": "SELL",
+      "fusion_score": -48.7,
+      "fusion_confidence": 0.69,
+      "target_position": 0.3,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "[情绪] Slight bullish sentiment with RSI above 60 | mean_reversion_adj[MID=45%]; momentum_cross[HIGH=79%]; vol_price_convergence[MID=40%]; mean_reversion_atr[MID=41%]; momentum_cross_short[MID=68%]; rsi_extreme[HIGH=97%]; volume_spike_reversal[HIGH=99%] | 单系统卖出信号 | 融合模型打分-118.0(RSI周63.5月50.0) | TA系统RSI=51.8信心50.0%",
+      "fm_signal": "SELL",
+      "fm_score": -118.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 51.8,
+      "rsi_weekly": 63.5,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": -1,
+      "macd_desc": "上MACD",
+      "fractal_type": "TOP",
+      "top_count": 59,
+      "bottom_count": 54,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 117.57,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": -22.1,
+      "llm_factor_summary": "mean_reversion_adj[MID=45%]; momentum_cross[HIGH=79%]; vol_price_convergence[MID=40%]; mean_reversion_atr[MID=41%]; momentum_cross_short[MID=68%]; rsi_extreme[HIGH=97%]; volume_spike_reversal[HIGH=99%]",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "raw": -0.737892,
+          "percentile": 45.3,
+          "note": "价格低于SMA50乖离+高ATR → 超卖买入信号"
+        },
+        "momentum_cross": {
+          "raw": 0.0,
+          "percentile": 78.6,
+          "note": "多周期全跌=超卖买入"
+        },
+        "vol_price_convergence": {
+          "raw": -0.767094,
+          "percentile": 39.6,
+          "note": "放量跌破SMA20=量价背离确认超卖"
+        },
+        "mean_reversion_atr": {
+          "raw": -0.231992,
+          "percentile": 40.6,
+          "note": "跌破SMA20+ATR高=超卖"
+        },
+        "momentum_cross_short": {
+          "raw": 0.0,
+          "percentile": 68.2,
+          "note": "短线1日+5日全跌=超卖买入"
+        },
+        "rsi_extreme": {
+          "raw": 0.0,
+          "percentile": 96.9,
+          "note": "RSI<30 超卖(正) / RSI>70 超买(负)"
+        },
+        "volume_spike_reversal": {
+          "raw": 0.0,
+          "percentile": 99,
+          "note": "放量大跌=恐慌抛售→潜在反转"
+        }
+      },
+      "market_state": "CRAB",
+      "event_sentiment_score": 1.0,
+      "event_type": "none",
+      "event_summary": "Slight bullish sentiment with RSI above 60",
+      "event_confidence": 0.6,
+      "hard_gate_passed": true,
+      "hard_gate_reason": ""
+    }
+  ],
+  "orders": [],
+  "summary": {
+    "total": 7,
+    "strong_buy": 0,
+    "buy": 3,
+    "hold": 0,
+    "sell": 2,
+    "reduced": 2
+  }
+}

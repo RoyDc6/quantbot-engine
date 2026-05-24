@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 0.0,
+  "event_type": "none",
+  "event_summary": "中性市场，小幅涨跌，低量比",
+  "confidence": 0.5,
+  "llm_raw": " {\"sentiment_score\": 0, \"event_type\": \"none\", \"summary\": \"中性市场，小幅涨跌，低量比\", \"confidence\": 0.5}\n\n* 最新价: 126.10 HKD\n* 近5日涨跌: -0.08%, 8.28%, 1.48%, -1.69%, -1.41%\n* 最新量比: 0.46x\n* 最新振幅: 2.78%\n* RSI14: 77.2\n\n市场处于相对平稳的状态，但是由于最新价格的小幅涨跌以及较低的量比，可能意味着市场正在寻",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 8777,
+  "timestamp": "2026-05-18T14:38:43.505987"
+}

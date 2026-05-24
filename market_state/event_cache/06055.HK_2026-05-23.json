@@ -1,0 +1,10 @@
+{
+  "sentiment_score": -80.0,
+  "event_type": "none",
+  "event_summary": "The recent market sentiment for 06055.HK is negative with a slight bearish outlook.",
+  "confidence": 1,
+  "llm_raw": " {\n\"sentiment_score\": -80,\n\"event_type\": \"none\",\n\"summary\": \"The recent market sentiment for 06055.HK is negative with a slight bearish outlook.\",\n\"confidence\": 60\n}\n\nThis assessment is based on the following data:\n- The latest price of 44.60 indicates a downward trend in the short term.\n- The RSI14 of 24.4 suggests that the stock is oversold, which could indicate a potential reversal, but this is not yet confirmed.\n- The latest volume is only 0.27x the 90-day average, which is not indicative of",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 8528,
+  "timestamp": "2026-05-23T12:19:34.776074"
+}

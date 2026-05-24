@@ -1,0 +1,10 @@
+{
+  "sentiment_score": -20.0,
+  "event_type": "none",
+  "event_summary": "Neutral to slightly negative short-term market sentiment for GOOGL.US",
+  "confidence": 0.6,
+  "llm_raw": " {\n\"sentiment_score\": -20,\n\"event_type\": \"none\",\n\"summary\": \"Neutral to slightly negative short-term market sentiment for GOOGL.US\",\n\"confidence\": 0.6\n}\n\nExplanation:\n\n1. sentiment_score: The RSI14 is 35.2, which is closer to the oversold region (below 30) than the overbought region (above 70). Although the price has been increasing in the past few days, the RSI indicates that the momentum might be weakening. However, the recent price change is not significantly bearish, so the sentiment score i",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 7556,
+  "timestamp": "2026-05-22T10:14:24.681380"
+}

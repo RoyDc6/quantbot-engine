@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 5.0,
+  "event_type": "none",
+  "event_summary": "CRM.US has mild bullish sentiment with recent price increase and high RSI",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment_score\": 5, \"event_type\": \"none\", \"summary\": \"CRM.US has mild bullish sentiment with recent price increase and high RSI\", \"confidence\": 0.6}\n\nThe sentiment score is 5, indicating a slightly bullish market sentiment for CRM.US. This is based on the recent price increase and RSI value of 79.7, which is above 70, suggesting overbought conditions. However, there are no significant event types or reversal signals in the recent data.\n\nPlease note that this analysis is based on the provided",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 7610,
+  "timestamp": "2026-05-18T22:10:03.053085"
+}

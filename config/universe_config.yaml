@@ -1,0 +1,170 @@
+# config/universe_config.yaml — QuantBot 资产配置中心 v2.0
+# 单一真相源：所有管线通过此文件获取标的定义、适配器类型、元数据。
+# FusionController / AdapterFactory / UniverseManager 均以此文件为准。
+#
+# ticker:  标准符号（00700.HK / AAPL.US / BTC.USDT）
+# adapter: 实现 BaseAdapter 接口的适配器类名（FutuAdapter / CryptoAdapter）
+# params:  适配器特定参数（market 为必填: HK / US / Crypto）
+# enabled: false → 系统跳过此标的
+
+version: 2.0
+
+assets:
+  # ── 港股（Futu API primary / TickFlow fallback）──
+  - ticker: 00700.HK
+    name: 腾讯
+    adapter: FutuAdapter
+    params: { market: HK, lot_size: 100 }
+    enabled: true
+
+  - ticker: 00388.HK
+    name: 港交所
+    adapter: FutuAdapter
+    params: { market: HK, lot_size: 100 }
+    enabled: true
+
+  - ticker: 09988.HK
+    name: 阿里巴巴
+    adapter: FutuAdapter
+    params: { market: HK, lot_size: 100 }
+    enabled: true
+
+  - ticker: 03690.HK
+    name: 美团
+    adapter: FutuAdapter
+    params: { market: HK, lot_size: 100 }
+    enabled: true
+
+  - ticker: 09618.HK
+    name: 京东
+    adapter: FutuAdapter
+    params: { market: HK, lot_size: 100 }
+    enabled: true
+
+  - ticker: 01024.HK
+    name: 快手
+    adapter: FutuAdapter
+    params: { market: HK, lot_size: 100 }
+    enabled: true
+
+  - ticker: 06055.HK
+    name: 中烟国际
+    adapter: FutuAdapter
+    params: { market: HK, lot_size: 400 }
+    enabled: true
+
+  # ── 美股（Futu API primary / TickFlow fallback）──
+  - ticker: AAPL.US
+    name: Apple
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  - ticker: AMZN.US
+    name: Amazon
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  - ticker: MSFT.US
+    name: Microsoft
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  - ticker: GOOGL.US
+    name: Google
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  - ticker: META.US
+    name: Meta
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  - ticker: NVDA.US
+    name: Nvidia
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  - ticker: TSLA.US
+    name: Tesla
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  - ticker: AMD.US
+    name: AMD
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  - ticker: AVGO.US
+    name: Broadcom
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  - ticker: ORCL.US
+    name: Oracle
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  - ticker: NFLX.US
+    name: Netflix
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  - ticker: CRM.US
+    name: Salesforce
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  - ticker: ADBE.US
+    name: Adobe
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  - ticker: INTC.US
+    name: Intel
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  - ticker: QCOM.US
+    name: Qualcomm
+    adapter: FutuAdapter
+    params: { market: US }
+    enabled: true
+
+  # ── 加密货币（OKX API v5）──
+  - ticker: BTC.USDT
+    name: Bitcoin
+    adapter: CryptoAdapter
+    params: { market: Crypto, exchange: OKX }
+    enabled: true
+
+  - ticker: ETH.USDT
+    name: Ethereum
+    adapter: CryptoAdapter
+    params: { market: Crypto, exchange: OKX }
+    enabled: true
+
+  - ticker: SOL.USDT
+    name: Solana
+    adapter: CryptoAdapter
+    params: { market: Crypto, exchange: OKX }
+    enabled: true
+
+  - ticker: NEAR.USDT
+    name: NEAR Protocol
+    adapter: CryptoAdapter
+    params: { market: Crypto, exchange: OKX }
+    enabled: true

@@ -1,0 +1,969 @@
+{
+  "date": "2026-05-07",
+  "market": "US",
+  "generated_at": "2026-05-07T21:38:02.511531",
+  "signals": [
+    {
+      "symbol": "CRM.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 263.969812719,
+      "data_source": "Futu",
+      "fusion_level": "BUY",
+      "fusion_score": 62.0,
+      "fusion_confidence": 0.69,
+      "target_position": 0.4,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "无有效因子 | 单系统买入信号 | 融合模型打分124.0(RSI周65.3月50.0) | TA系统RSI=65.2信心50.0% | VIX分位0%→仓位×80%",
+      "fm_signal": "BUY",
+      "fm_score": 124.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 65.2,
+      "rsi_weekly": 65.3,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": -1,
+      "macd_desc": "上MACD",
+      "fractal_type": "BOTTOM",
+      "top_count": 53,
+      "bottom_count": 62,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 232.29,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for CRM"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for CRM"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for CRM"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for CRM"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for CRM"
+        }
+      }
+    },
+    {
+      "symbol": "AVGO.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 340.73523213,
+      "data_source": "Futu",
+      "fusion_level": "BUY",
+      "fusion_score": 55.0,
+      "fusion_confidence": 0.69,
+      "target_position": 0.4,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "无有效因子 | 单系统买入信号 | 融合模型打分110.0(RSI周32.8月50.0) | TA系统RSI=42.1信心50.0% | VIX分位0%→仓位×80%",
+      "fm_signal": "BUY",
+      "fm_score": 110.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 42.1,
+      "rsi_weekly": 32.8,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": 5,
+      "macd_desc": "下MACD",
+      "fractal_type": "BOTTOM",
+      "top_count": 59,
+      "bottom_count": 55,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 299.85,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AVGO"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AVGO"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AVGO"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AVGO"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AVGO"
+        }
+      }
+    },
+    {
+      "symbol": "ORCL.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 197.168354275,
+      "data_source": "Futu",
+      "fusion_level": "BUY",
+      "fusion_score": 54.0,
+      "fusion_confidence": 0.69,
+      "target_position": 0.4,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "无有效因子 | 单系统买入信号 | 融合模型打分108.0(RSI周14.2月50.0) | TA系统RSI=43.8信心50.0% | VIX分位0%→仓位×80%",
+      "fm_signal": "BUY",
+      "fm_score": 108.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 43.8,
+      "rsi_weekly": 14.2,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": -3,
+      "macd_desc": "0轴震荡",
+      "fractal_type": "BOTTOM",
+      "top_count": 53,
+      "bottom_count": 54,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 173.51,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for ORCL"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for ORCL"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for ORCL"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for ORCL"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for ORCL"
+        }
+      }
+    },
+    {
+      "symbol": "INTC.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 36.37,
+      "data_source": "Futu",
+      "fusion_level": "BUY",
+      "fusion_score": 52.0,
+      "fusion_confidence": 0.69,
+      "target_position": 0.4,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "无有效因子 | 单系统买入信号 | 融合模型打分104.0(RSI周41.3月50.0) | TA系统RSI=43.5信心50.0% | VIX分位0%→仓位×80%",
+      "fm_signal": "BUY",
+      "fm_score": 104.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 43.5,
+      "rsi_weekly": 41.3,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": 7,
+      "macd_desc": "下MACD",
+      "fractal_type": "BOTTOM",
+      "top_count": 50,
+      "bottom_count": 52,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 32.01,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for INTC"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for INTC"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for INTC"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for INTC"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for INTC"
+        }
+      }
+    },
+    {
+      "symbol": "GOOGL.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 309.562078753,
+      "data_source": "Futu",
+      "fusion_level": "BUY",
+      "fusion_score": 49.0,
+      "fusion_confidence": 0.69,
+      "target_position": 0.4,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "无有效因子 | 单系统买入信号 | 融合模型打分98.0(RSI周57.0月50.0) | TA系统RSI=55.4信心50.0% | VIX分位0%→仓位×80%",
+      "fm_signal": "BUY",
+      "fm_score": 98.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 55.4,
+      "rsi_weekly": 57.0,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": 4,
+      "macd_desc": "0轴震荡",
+      "fractal_type": "BOTTOM",
+      "top_count": 54,
+      "bottom_count": 49,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 272.41,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for GOOGL"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for GOOGL"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for GOOGL"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for GOOGL"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for GOOGL"
+        }
+      }
+    },
+    {
+      "symbol": "NVDA.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 183.680058329,
+      "data_source": "Futu",
+      "fusion_level": "BUY",
+      "fusion_score": 49.0,
+      "fusion_confidence": 0.69,
+      "target_position": 0.4,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "无有效因子 | 单系统买入信号 | 融合模型打分98.0(RSI周27.3月50.0) | TA系统RSI=52.4信心50.0% | VIX分位0%→仓位×80%",
+      "fm_signal": "BUY",
+      "fm_score": 98.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 52.4,
+      "rsi_weekly": 27.3,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": 1,
+      "macd_desc": "0轴震荡",
+      "fractal_type": "BOTTOM",
+      "top_count": 51,
+      "bottom_count": 49,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 161.64,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for NVDA"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for NVDA"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for NVDA"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for NVDA"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for NVDA"
+        }
+      }
+    },
+    {
+      "symbol": "QCOM.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 173.108568388,
+      "data_source": "Futu",
+      "fusion_level": "BUY",
+      "fusion_score": 46.0,
+      "fusion_confidence": 0.69,
+      "target_position": 0.4,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "无有效因子 | 单系统买入信号 | 融合模型打分92.0(RSI周52.4月50.0) | TA系统RSI=51.6信心50.0% | VIX分位0%→仓位×80%",
+      "fm_signal": "BUY",
+      "fm_score": 92.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 51.6,
+      "rsi_weekly": 52.4,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": 0,
+      "macd_desc": "0轴震荡",
+      "fractal_type": "BOTTOM",
+      "top_count": 51,
+      "bottom_count": 46,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 152.34,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for QCOM"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for QCOM"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for QCOM"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for QCOM"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for QCOM"
+        }
+      }
+    },
+    {
+      "symbol": "NFLX.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 93.23,
+      "data_source": "Futu",
+      "fusion_level": "REDUCED",
+      "fusion_score": -29.0,
+      "fusion_confidence": 0.8,
+      "target_position": 0.16,
+      "risk": "MEDIUM",
+      "warnings": [
+        "双系统信号矛盾"
+      ],
+      "reasoning": "无有效因子 | 信号矛盾，降仓观望 | 融合模型打分-102.0(RSI周11.5月50.0) | TA系统RSI=31.7信心72.0% | VIX分位0%→仓位×80%",
+      "fm_signal": "SELL",
+      "fm_score": -102.0,
+      "ta_signal": "BUY",
+      "ta_confidence": 0.72,
+      "rsi_daily": 31.7,
+      "rsi_weekly": 11.5,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": -2,
+      "macd_desc": "下MACD(底背离)",
+      "fractal_type": "TOP",
+      "top_count": 51,
+      "bottom_count": 49,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 82.04,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for NFLX"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for NFLX"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for NFLX"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for NFLX"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for NFLX"
+        }
+      }
+    },
+    {
+      "symbol": "META.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 660.93411784,
+      "data_source": "Futu",
+      "fusion_level": "STRONG_SELL",
+      "fusion_score": -30.0,
+      "fusion_confidence": 0.8,
+      "target_position": 0.8,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "无有效因子 | 双系统共振卖出 | 融合模型打分-104.0(RSI周54.9月50.0) | TA系统RSI=54.5信心72.0%",
+      "fm_signal": "SELL",
+      "fm_score": -104.0,
+      "ta_signal": "SELL",
+      "ta_confidence": 0.72,
+      "rsi_daily": 54.5,
+      "rsi_weekly": 54.9,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": 11,
+      "macd_desc": "上MACD",
+      "fractal_type": "TOP",
+      "top_count": 52,
+      "bottom_count": 51,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 581.62,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for META"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for META"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for META"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for META"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for META"
+        }
+      }
+    },
+    {
+      "symbol": "TSLA.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 488.73,
+      "data_source": "Futu",
+      "fusion_level": "STRONG_SELL",
+      "fusion_score": -36.0,
+      "fusion_confidence": 0.8,
+      "target_position": 0.8,
+      "risk": "MEDIUM",
+      "warnings": [
+        "周线RSI超买(74.6)"
+      ],
+      "reasoning": "无有效因子 | 双系统共振卖出 | 融合模型打分-116.0(RSI周74.6月50.0) | TA系统RSI=63.9信心72.0%",
+      "fm_signal": "SELL",
+      "fm_score": -116.0,
+      "ta_signal": "SELL",
+      "ta_confidence": 0.72,
+      "rsi_daily": 63.9,
+      "rsi_weekly": 74.6,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": 10,
+      "macd_desc": "上MACD",
+      "fractal_type": "TOP",
+      "top_count": 58,
+      "bottom_count": 57,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 430.08,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for TSLA"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for TSLA"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for TSLA"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for TSLA"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for TSLA"
+        }
+      }
+    },
+    {
+      "symbol": "AAPL.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 270.716683966,
+      "data_source": "Futu",
+      "fusion_level": "SELL",
+      "fusion_score": -49.0,
+      "fusion_confidence": 0.69,
+      "target_position": 0.3,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "无有效因子 | 单系统卖出信号 | 融合模型打分-98.0(RSI周49.7月50.0) | TA系统RSI=44.1信心50.0%",
+      "fm_signal": "SELL",
+      "fm_score": -98.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 44.1,
+      "rsi_weekly": 49.7,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": 8,
+      "macd_desc": "0轴震荡",
+      "fractal_type": "TOP",
+      "top_count": 49,
+      "bottom_count": 49,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 238.23,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AAPL"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AAPL"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AAPL"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AAPL"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AAPL"
+        }
+      }
+    },
+    {
+      "symbol": "ADBE.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 357.53,
+      "data_source": "Futu",
+      "fusion_level": "SELL",
+      "fusion_score": -50.0,
+      "fusion_confidence": 0.69,
+      "target_position": 0.3,
+      "risk": "MEDIUM",
+      "warnings": [
+        "周线RSI超买(73.7)"
+      ],
+      "reasoning": "无有效因子 | 单系统卖出信号 | 融合模型打分-100.0(RSI周73.7月50.0) | TA系统RSI=64.3信心50.0%",
+      "fm_signal": "SELL",
+      "fm_score": -100.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 64.3,
+      "rsi_weekly": 73.7,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": -1,
+      "macd_desc": "上MACD",
+      "fractal_type": "TOP",
+      "top_count": 50,
+      "bottom_count": 54,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 314.63,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for ADBE"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for ADBE"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for ADBE"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for ADBE"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for ADBE"
+        }
+      }
+    },
+    {
+      "symbol": "MSFT.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 483.815702352,
+      "data_source": "Futu",
+      "fusion_level": "SELL",
+      "fusion_score": -51.0,
+      "fusion_confidence": 0.69,
+      "target_position": 0.3,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "无有效因子 | 单系统卖出信号 | 融合模型打分-102.0(RSI周31.2月50.0) | TA系统RSI=48.0信心50.0%",
+      "fm_signal": "SELL",
+      "fm_score": -102.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 48.0,
+      "rsi_weekly": 31.2,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": -2,
+      "macd_desc": "0轴震荡",
+      "fractal_type": "TOP",
+      "top_count": 51,
+      "bottom_count": 52,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 425.76,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for MSFT"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for MSFT"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for MSFT"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for MSFT"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for MSFT"
+        }
+      }
+    },
+    {
+      "symbol": "AMZN.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 228.43,
+      "data_source": "Futu",
+      "fusion_level": "SELL",
+      "fusion_score": -55.0,
+      "fusion_confidence": 0.69,
+      "target_position": 0.3,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "无有效因子 | 单系统卖出信号 | 融合模型打分-110.0(RSI周42.4月50.0) | TA系统RSI=50.0信心50.0%",
+      "fm_signal": "SELL",
+      "fm_score": -110.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 50.0,
+      "rsi_weekly": 42.4,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": 7,
+      "macd_desc": "下MACD",
+      "fractal_type": "TOP",
+      "top_count": 55,
+      "bottom_count": 53,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 201.02,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AMZN"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AMZN"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AMZN"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AMZN"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AMZN"
+        }
+      }
+    },
+    {
+      "symbol": "AMD.US",
+      "market": "US",
+      "date": "2025-12-22",
+      "close": 214.95,
+      "data_source": "Futu",
+      "fusion_level": "SELL",
+      "fusion_score": -56.0,
+      "fusion_confidence": 0.69,
+      "target_position": 0.3,
+      "risk": "LOW",
+      "warnings": [],
+      "reasoning": "无有效因子 | 单系统卖出信号 | 融合模型打分-112.0(RSI周28.1月50.0) | TA系统RSI=48.6信心50.0%",
+      "fm_signal": "SELL",
+      "fm_score": -112.0,
+      "ta_signal": "HOLD",
+      "ta_confidence": 0.5,
+      "rsi_daily": 48.6,
+      "rsi_weekly": 28.1,
+      "rsi_monthly": 50.0,
+      "resonance": true,
+      "td9_count": -2,
+      "macd_desc": "下MACD",
+      "fractal_type": "TOP",
+      "top_count": 56,
+      "bottom_count": 57,
+      "trend_up": false,
+      "stop_levels": {
+        "fixed": 189.16,
+        "trailing_pct": -0.12,
+        "dd_limit": -0.3
+      },
+      "llm_factor_score": 0.0,
+      "llm_factor_summary": "无有效因子",
+      "llm_factor_details": {
+        "mean_reversion_adj": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AMD"
+        },
+        "momentum_cross": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AMD"
+        },
+        "vol_price_convergence": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AMD"
+        },
+        "mean_reversion_atr": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AMD"
+        },
+        "momentum_cross_short": {
+          "score": 0,
+          "raw": null,
+          "note": "not valid for AMD"
+        }
+      }
+    }
+  ],
+  "orders": [
+    {
+      "symbol": "CRM.US",
+      "action": "BUY",
+      "qty": 131,
+      "price": 263.969812719,
+      "lot_size": 1,
+      "reason": "BUY score=+62 [分批 1/3 总目标386股]"
+    },
+    {
+      "symbol": "INTC.US",
+      "action": "BUY",
+      "qty": 954,
+      "price": 36.37,
+      "lot_size": 1,
+      "reason": "BUY score=+52 [分批 1/3 总目标2806股]"
+    }
+  ],
+  "summary": {
+    "total": 15,
+    "strong_buy": 0,
+    "buy": 7,
+    "hold": 0,
+    "sell": 7,
+    "reduced": 1
+  }
+}

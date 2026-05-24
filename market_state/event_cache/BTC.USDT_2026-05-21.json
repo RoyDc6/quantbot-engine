@@ -1,0 +1,10 @@
+{
+  "sentiment_score": -50.0,
+  "event_type": "none",
+  "event_summary": "Neutral short-term market sentiment for BTC.USDT with slight bearish bias",
+  "confidence": 0.7,
+  "llm_raw": " {\n\"sentiment_score\": -50,\n\"event_type\": \"none\",\n\"summary\": \"Neutral short-term market sentiment for BTC.USDT with slight bearish bias\",\n\"confidence\": 0.7\n}\n\nExplanation:\n\n1. sentiment_score: The sentiment score is -50, which indicates a neutral short-term market sentiment for BTC.USDT with a slight bearish bias. This is because the RSI14 is 37.3, which is closer to the oversold region (below 30), and the recent price change has been slightly negative.\n\n2. event_type: Since there are no signific",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 23700,
+  "timestamp": "2026-05-21T14:45:47.547147"
+}

@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 60.0,
+  "event_type": "none",
+  "event_summary": "The market for 00700.HK is currently bullish, with a slight cooling trend. The latest price is 668.20, and the RSI14 is 74.7, indicating overbought conditions.",
+  "confidence": 0.75,
+  "llm_raw": " {\n\"sentiment_score\": 60,\n\"event_type\": \"none\",\n\"summary\": \"The market for 00700.HK is currently bullish, with a slight cooling trend. The latest price is 668.20, and the RSI14 is 74.7, indicating overbought conditions.\",\n\"confidence\": 0.75\n}",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 5289,
+  "timestamp": "2026-05-23T12:19:02.251485"
+}

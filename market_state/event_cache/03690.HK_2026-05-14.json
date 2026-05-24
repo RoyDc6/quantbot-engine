@@ -1,0 +1,10 @@
+{
+  "sentiment_score": 1.0,
+  "event_type": "none",
+  "event_summary": "Slightly bullish with RSI above 60 and recent price increase",
+  "confidence": 0.6,
+  "llm_raw": " {\"sentiment_score\": 1, \"event_type\": \"none\", \"summary\": \"Slightly bullish with RSI above 60 and recent price increase\", \"confidence\": 0.6}\n\nThe sentiment score is slightly positive (1) due to the RSI being above 60, indicating overbought conditions, and the recent price increase of 4.1%. The event type is \"none\" as there are no significant momentum shifts, volume anomalies, reversal signals, or breakouts in the provided data. The summary is \"Slightly bullish with RSI above 60 and recent price i",
+  "llm_model": "mistralai/mixtral-8x7b-instruct-v0.1",
+  "llm_latency_ms": 9049,
+  "timestamp": "2026-05-14T12:58:04.204000"
+}
