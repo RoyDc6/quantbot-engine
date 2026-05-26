@@ -141,6 +141,20 @@ ret, data, page_key = ctx.request_history_kline(
 - `E:\quant\tmp\vp_benchmark.py` — 纯净版，无奇点B/对比模式
 - 用法: `python vp_benchmark.py <data.json> --lookback 120 --bins 100`
 
+## 备份体系（2026-05-26 建立）
+### Skills 技能备份
+- **tar.gz**: `E:\quant\backups\skills_2026-05-26_0550.tar.gz` (406KB, 恢复: `tar xzf`)
+- **Git**: `E:\quant\backups\skills-git/` → GitHub 私有仓库 `RoyDc6/skills-backup` (tag: v2026-05-26)
+- GitHub Token: 已保存至 `~/.workbuddy/MEMORY.md`
+
+### QuantBot 全量备份
+- **tar.gz**: `E:\quant\backups\quantbot_full_2026-05-26.tar.gz` (456MB, 3606文件)
+- **Download**: https://github.com/RoyDc6/quantbot-backup/releases/download/v2026-05-26/quantbot_full_2026-05-26.tar.gz
+- **GitHub**: `RoyDc6/quantbot-backup`（私有仓库, Release v2026-05-26）
+- 包含: Agent身份(S0UL/IDENTITY/USER/MEMORY) + 32个Skills + E:\quant全量代码含_archive
+- 排除: __pycache__ / .git / node_modules / *.pyc
+- 恢复命令: `tar xzf quantbot_full_2026-05-26.tar.gz -C /`
+
 ## 架构前瞻建议 — 未来 FusionController 接入参考（2026-05-21 用户提供）
 **来源**: LLMBiasModel 备份讨论中用户提出的两个潜在风险点，当前无需修改，留待扩容/实盘中控时参考。
 
@@ -213,3 +227,7 @@ AdapterFactory.register('MyAdapter', MyAdapter)
 - `core/universe_manager.py` — YAML 加载为主
 - `core/futu_adapter.py` — 继承 BaseAdapter
 - `core/fusion_controller.py` — 使用 AdapterFactory，不再直接持有适配器
+
+## NVIDIA NIM API — 已恢复（2026-05-26）
+**修复**：✅ 2026-05-26 11:40 重建 nvidia-api skill（含 scripts/nvidia_api.py），API 测试通过。同时恢复了 futuapi、install-futu-opend、tickflow、nvidia-market-consensus、xmm-strategy、chan-theory 共 6 个 skill。
+**NIM_AVAILABLE** = True ✅

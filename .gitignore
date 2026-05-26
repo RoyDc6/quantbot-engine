@@ -40,3 +40,12 @@ config.local.py
 
 # Reports (generated)
 reports/
+
+# LLM event cache (transient, regenerated daily)
+market_state/event_cache/
+
+# Paper trading signal output (generated)
+paper_trading/signals/
+
+# Backup archives (separate repos: skills-backup / quantbot-backup)
+backups/
