@@ -514,17 +514,27 @@ def _print_summary(signals, market_state='CRAB'):
     """打印信号摘要。"""
     print(f'\n{"="*65}')
     print(f'  信号摘要 ({len(signals)} stocks) | 市场状态: {market_state}')
+    stale_signals = [s for s in signals if s.get('warnings') and any('滞后' in w for w in s.get('warnings', []))]
+    if stale_signals:
+        stale_str = ', '.join(s['symbol'] for s in stale_signals[:3])
+        print(f'  [STALE] 数据滞后: {stale_str}{"..." if len(stale_signals)>3 else ""}')
     print(f'{"="*65}')
 
     for sig in signals:
         level = sig['fusion_level']
+        stale = ''
+        if sig.get('warnings') and any('滞后' in w for w in sig.get('warnings', [])):
+            stale = '[STALE]'
         if level in ('STRONG_BUY', 'BUY'):
             ms = sig.get('market_state', '?')
             event = sig.get('event_sentiment_score', 0)
             event_str = f' event={event:+.0f}' if event else ''
             print(f'  {sig["symbol"]:<12} {level:<12} score={sig["fusion_score"]:+.1f} '
                   f'conf={sig["fusion_confidence"]:.0%} '
-                  f'rsi_d={sig["rsi_daily"]:.0f} state={ms}{event_str} [{sig["data_source"]}]')
+                  f'rsi_d={sig["rsi_daily"]:.0f} state={ms}{event_str}{stale} [{sig["data_source"]}]')
+
+    def _stale_flag(sig):
+        return '[STALE]' if sig.get('warnings') and any('滞后' in w for w in sig.get('warnings', [])) else ''
 
     print(f'\n--- REDUCED ---')
     for sig in signals:
@@ -533,21 +543,21 @@ def _print_summary(signals, market_state='CRAB'):
             ms = sig.get('market_state', '?')
             raw = sig.get('raw_scores', {})
             rs = f' xmm={raw.get("xmm",0):+.0f} vp={raw.get("vp",0):+.0f} llm={raw.get("llm",0):+.0f}' if raw else ''
-            print(f'  {sig["symbol"]:<12} {level:<12} score={sig["fusion_score"]:+.1f} state={ms} conf={sig["fusion_confidence"]:.0%}{rs} [{sig["data_source"]}]')
+            print(f'  {sig["symbol"]:<12} {level:<12} score={sig["fusion_score"]:+.1f} state={ms} conf={sig["fusion_confidence"]:.0%}{rs}{_stale_flag(sig)} [{sig["data_source"]}]')
 
     print(f'\n--- HOLD ---')
     for sig in signals:
         level = sig['fusion_level']
         if level == 'HOLD':
             ms = sig.get('market_state', '?')
-            print(f'  {sig["symbol"]:<12} {level:<12} score={sig["fusion_score"]:+.1f} state={ms} [{sig["data_source"]}]')
+            print(f'  {sig["symbol"]:<12} {level:<12} score={sig["fusion_score"]:+.1f} state={ms}{_stale_flag(sig)} [{sig["data_source"]}]')
 
     print(f'\n--- SELL ---')
     for sig in signals:
         level = sig['fusion_level']
         if level in ('STRONG_SELL', 'SELL'):
             ms = sig.get('market_state', '?')
-            print(f'  {sig["symbol"]:<12} {level:<12} score={sig["fusion_score"]:+.1f} state={ms} [{sig["data_source"]}]')
+            print(f'  {sig["symbol"]:<12} {level:<12} score={sig["fusion_score"]:+.1f} state={ms}{_stale_flag(sig)} [{sig["data_source"]}]')
 
 
 # === CLI ===========================================================

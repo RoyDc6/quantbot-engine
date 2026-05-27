@@ -55,20 +55,33 @@ except ImportError:
 
 
 def download_klines_futu(futu_code, cache_file):
-    """从 Futu OpenD 获取日K线 (约250根)"""
+    """从 Futu OpenD 获取日K线 (约252根)，翻页+前复权"""
     if not FUTU_AVAILABLE:
         return None
     ctx = OpenQuoteContext(host=config.FUTU_HOST, port=config.FUTU_PORT)
     try:
         end_dt = datetime.now().strftime('%Y-%m-%d')
         start_dt = (datetime.now() - timedelta(days=370)).strftime('%Y-%m-%d')
-        ret, data, _ = ctx.request_history_kline(
-            futu_code, start=start_dt, end=end_dt,
-            ktype='K_DAY', autype=None
-        )
-        if ret != 0 or not isinstance(data, pd.DataFrame) or len(data) < 50:
+        # 翻页获取完整数据（单次 max_count=252 已验证稳定）
+        all_pages, next_key = [], None
+        while True:
+            ret, page, next_key = ctx.request_history_kline(
+                futu_code, start=start_dt, end=end_dt,
+                ktype='K_DAY', autype='qfq', max_count=252, page_req_key=next_key
+            )
+            if ret != 0 or not isinstance(page, pd.DataFrame) or len(page) == 0:
+                break
+            all_pages.append(page)
+            if not next_key:
+                break
+        if not all_pages:
             return None
-        data = data.sort_values('time_key')
+        data = pd.concat(all_pages, ignore_index=True)
+        data = data.sort_values('time_key').drop_duplicates(subset=['time_key']).reset_index(drop=True)
+        if len(data) > 252:
+            data = data.iloc[-252:].reset_index(drop=True)
+        if len(data) < 50:
+            return None
         records = [{
             'date': pd.to_datetime(row['time_key']).strftime('%Y-%m-%d'),
             'open': float(row['open']), 'high': float(row['high']),
@@ -402,8 +415,6 @@ def scan_hk_market():
         print(f"  [{i}/{total}] {code} {name}...", end=" ", flush=True)
         sig = generate_signal(code, name)
         if sig:
-            sig_emoji = {"STRONG_BUY": "STRONG_BUY", "BUY": "BUY", "NEUTRAL": "NEUTRAL",
-                         "SELL": "SELL", "STRONG_SELL": "STRONG_SELL"}.get(sig['signal'], "")
             print(f"{sig['signal']} (score={sig['score']:+d})")
             results.append(sig)
         else:

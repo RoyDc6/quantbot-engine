@@ -1,5 +1,31 @@
 # MEMORY.md - 长期记忆
 
+## ⚠️ 重大教训：Futu request_history_kline 翻页（2026-05-27）
+**page_key 被 `_` 丢弃 → 数据滞后17个月 → XMM全0/REDUCED泛滥**
+
+`request_history_kline` 单次 `max_count` 上限无法覆盖全部历史数据，必须翻页。
+- **参数名**: `page_req_key`（不是 `page_key`！futu-api v10.5.6508 签名）
+- **稳定值**: `max_count=252`（>252 会导致 OpenD 挂起）
+- **禁用线程**: OpenD 在子线程中创建连接不稳定，直接调用即可
+- **OpenD 连接限制**: 过多连接会导致 OpenD 无响应，需重启
+
+修复检查清单：
+1. `futu_adapter.py` → 翻页循环 + `page_req_key` + 去线程化 ✅
+2. `scanner2/hk_tech_scan.py` → 翻页 + `page_req_key` + `autype='qfq'` ✅
+3. 所有其他调用 `request_history_kline` 的地方（xmm-strategy/目录下的回测脚本）—— 非生产代码，按需修
+
+## 数据新鲜度检测系统（2026-05-27 上线）
+三层防线：数据层(futu_adapter stale_days+logger) → 决策层(fusion_controller >30天HOLD / 3-30天衰减) → 展示层([STALE]/[EXPIRED] 标记+日报告警表格)
+GBK防护：emoji已替换为ASCII文本，reporter.py有reconfigure兜底
+
+## 架构分层原则（2026-05-27 教训）
+**market_state（宏观）和 XMM trend（个股）是两个独立层级，不可混为一谈。**
+- `market_state` = SPY + VIX → 回答"市场允不允许做多" → 仓位天花板
+- `XMM per-stock trend` = EMA25/90 → 回答"这只股票要不要做多" → 具体动作
+- BULL + 6/7 DOWN 不矛盾：宏观允许，个股无信号
+- "积极布局"是宏观建议，不是个股喊单
+- 审计时必须先理解架构分层再下判断
+
 ## 信号报告规范（2026-05-07）
 **教训**：报告交易信号时，必须穿透三层——信号层（fusion_level/score）→ 执行层（风控规则是否放行）→ 结果层（实际订单/排除原因）。不能只看信号就下结论，必须追踪完整的规则链路。
 

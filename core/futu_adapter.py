@@ -15,6 +15,9 @@ import sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Futu API（可选依赖）
 try:
@@ -100,30 +103,54 @@ class FutuAdapter(BaseAdapter):
             autype_val = ft.AuType.NONE
 
         try:
-            result = [None]
-            def _fetch():
-                try:
-                    ctx = ft.OpenQuoteContext(host=self.host, port=self.port)
-                    try:
-                        ret, data, _ = ctx.request_history_kline(
-                            futu_code,
-                            start=start, end=end,
-                            ktype=ktype,
-                            autype=autype_val,
-                            max_count=count,
-                        )
-                        if ret == ft.RET_OK and data is not None and len(data) > 0:
-                            result[0] = self._normalize_kline_df(data)
-                    finally:
-                        ctx.close()
-                except Exception:
-                    pass
+            ctx = ft.OpenQuoteContext(host=self.host, port=self.port)
+            try:
+                # 翻页获取完整 K 线（单次 max_count=252 已验证稳定）
+                all_pages = []
+                next_key = None
+                while True:
+                    ret, data, next_key = ctx.request_history_kline(
+                        futu_code,
+                        start=start, end=end,
+                        ktype=ktype,
+                        autype=autype_val,
+                        max_count=252,
+                        page_req_key=next_key,
+                    )
+                    if ret != ft.RET_OK or data is None or len(data) == 0:
+                        break
+                    all_pages.append(data)
+                    if not next_key:
+                        break
 
-            import threading
-            t = threading.Thread(target=_fetch, daemon=True)
-            t.start()
-            t.join(timeout=15)
-            return result[0]
+                if all_pages:
+                    full = pd.concat(all_pages, ignore_index=True)
+                    full = full.sort_values('time_key')
+                    full = full.drop_duplicates(subset=['time_key']).reset_index(drop=True)
+                    # 只保留最新的 count 根
+                    if len(full) > count:
+                        full = full.iloc[-count:].reset_index(drop=True)
+                    result = self._normalize_kline_df(full)
+                    # ─── 数据新鲜度检测 ────────────────────────────
+                    if result is not None and len(result) > 0:
+                        try:
+                            last_date = pd.to_datetime(result['date'].iloc[-1])
+                            stale_days = (datetime.now() - last_date).days
+                            result.attrs['stale_days'] = stale_days
+                            if stale_days > 30:
+                                result.attrs['stale_critical'] = True
+                                logger.warning(f'[CRITICAL] {futu_code} K线滞后{stale_days}天（最近日期{result["date"].iloc[-1]}），数据可能已停止同步')
+                            elif stale_days > 3:
+                                result.attrs['stale_warning'] = True
+                                logger.warning(f'[STALE] {futu_code} K线滞后{stale_days}天（最近日期{result["date"].iloc[-1]}）')
+                            elif stale_days > 0:
+                                logger.info(f'[FRESH] {futu_code} K线滞后{stale_days}天 ✅')
+                        except Exception:
+                            pass
+                    return result
+                return None
+            finally:
+                ctx.close()
 
         except Exception:
             return None

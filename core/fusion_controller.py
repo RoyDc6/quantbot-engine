@@ -244,6 +244,24 @@ class FusionController:
 
         results['close'] = float(df['close'].iloc[-1])
         results['data_source'] = df.attrs.get('source', 'Futu')
+
+        # ─── 数据新鲜度检测 ────────────────────────────────────
+        stale_days = df.attrs.get('stale_days', 0)
+        if stale_days > 0:
+            results['stale_days'] = stale_days
+            msg = f'K线数据滞后{stale_days}天'
+            if stale_days > 30:
+                # 严重过期：全信号强制 HOLD，不做任何判断
+                results['errors'].append(f'数据严重过期({stale_days}天)，信号暂停')
+                results['directive'] = {
+                    'action': 'HOLD',
+                    'reason': f'数据严重过期({stale_days}天)，信号不可信',
+                    'target_pct': 0.0,
+                }
+                return results
+            elif stale_days > 3:
+                results['warnings'].append(f'{msg}，XMM/VP信号置信度减半')
+
         close = df['close'].values.astype(float)
         date = results['date']
 
@@ -352,6 +370,19 @@ class FusionController:
         # 4. 融合信号
         fusion = self._fuse_signals(xmm_result, vp_result, llm_result,
                                     active_weights, date, ticker)
+
+        # ─── 数据滞后的置信度惩罚 ────────────────────────────
+        stale_days = results.get('stale_days', 0)
+        if 3 < stale_days <= 30:
+            fusion['confidence'] *= 0.5  # 置信度减半
+            fusion['warnings'] = fusion.get('warnings', []) + [f'数据滞后{stale_days}天，置信度减半']
+            results['warnings'].append(f'数据滞后{stale_days}天，信号置信度减半')
+            # 分数也按比例降低（滞后越长折扣越大）
+            decay = max(0.5, 1.0 - stale_days * 0.02)
+            fusion['score'] = round(fusion['score'] * decay, 1)
+            fusion['level'] = self._score_to_level(fusion['score'])
+            fusion['position_pct'] = self._level_to_position(fusion['level'])
+
         results['fusion'] = fusion
 
         # 5. HardGate 硬门槛检查
@@ -512,7 +543,15 @@ class FusionController:
         """
         try:
             adapter = AdapterFactory.get_adapter(ticker)
-            return adapter.fetch_kline(ticker, count=252)
+            df = adapter.fetch_kline(ticker, count=252)
+            # ─── 数据新鲜度告警 ────────────────────────────────
+            if df is not None and len(df) > 0:
+                stale_days = df.attrs.get('stale_days', 0)
+                if stale_days > 30:
+                    print(f'  [EXPIRED] {ticker} K线滞后{stale_days}天，数据可能已停止同步')
+                elif stale_days > 3:
+                    print(f'  [STALE] {ticker} K线滞后{stale_days}天')
+            return df
         except Exception:
             return None
 
