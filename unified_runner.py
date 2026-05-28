@@ -20,6 +20,12 @@ import warnings
 from datetime import datetime, date
 from pathlib import Path
 
+# stdout 编码修正（Windows GBK 环境下 emoji 会炸）
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+except Exception:
+    pass
+
 warnings.filterwarnings('ignore')
 
 # === 路径 =========================================================
@@ -189,6 +195,20 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False):
         _save_signals(today, market, signals)
         print(f'\n  [信号模式] 仅生成信号，不执行交易')
         _print_summary(signals, market_state=market_state)
+        # 信号模式下也生成 v3 报告
+        try:
+            from reports.fusion_report_v3 import generate_v3_report
+            generate_v3_report(
+                date=today,
+                market=market,
+                signals=signals,
+                orders=[],
+                positions=[],
+                account=None,
+                market_report=market_report,
+            )
+        except Exception as e:
+            print(f'  [WARN] v3日报生成失败: {e}')
         return
 
     # Step 4: 查询 Futu 账户（唯一持仓真相源）
@@ -416,10 +436,10 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False):
     # 打印摘要
     _print_summary(signals, market_state=market_state)
 
-    # 生成日报
+    # 生成 v3.0 日报
     try:
-        from reports.reporter import generate_daily_report
-        # 将 Futu 持仓转换为 reporter 兼容格式
+        from reports.fusion_report_v3 import generate_v3_report
+        # 将 Futu 持仓转换为报告兼容格式
         _reporter_positions = []
         for sym, p in held_map.items():
             cur_price = p.get('current_price', 0)
@@ -433,8 +453,9 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False):
                 'pnl': (cur_price / cost_price - 1) * 100,
                 'triggered_stop': False,
             })
-        generate_daily_report(
+        generate_v3_report(
             date=today,
+            market=market,
             signals=signals,
             orders=orders,
             positions=_reporter_positions,
@@ -442,7 +463,7 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False):
             market_report=market_report,
         )
     except Exception as e:
-        print(f'  [WARN] 日报生成失败: {e}')
+        print(f'  [WARN] v3日报生成失败: {e}')
         import traceback; traceback.print_exc()
 
     duration = (datetime.now() - ts_start).total_seconds()
@@ -453,15 +474,24 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False):
 # === 辅助函数 =====================================================
 
 def _fc_result_to_signal(fc_result: dict, market: str) -> dict:
-    """将 FusionController.analyze_ticker() 输出映射为标准信号格式。"""
+    """将 FusionController.analyze_ticker() 输出映射为标准信号格式（v3 增强版）。"""
     fc_fusion = fc_result.get('fusion', {})
     fc_dir = fc_result.get('directive', {})
+    fc_sources = fc_result.get('sources', {})
+    fc_status = fc_result.get('status', {})
+
+    # 提取各因子源详细信息
+    xmm_src = fc_sources.get('xmm', {})
+    vp_src = fc_sources.get('vp', {})
+    llm_src = fc_sources.get('llm', {})
+
     return {
         'symbol': fc_result.get('ticker', ''),
         'market': market,
         'date': fc_result.get('date', ''),
         'close': fc_result.get('close', 0),
         'data_source': fc_result.get('data_source', 'Fusion'),
+        # 融合结果
         'fusion_level': fc_dir.get('level', fc_fusion.get('level', 'HOLD')),
         'fusion_score': fc_fusion.get('score', 0),
         'fusion_confidence': fc_fusion.get('confidence', 0),
@@ -472,8 +502,31 @@ def _fc_result_to_signal(fc_result: dict, market: str) -> dict:
         'rsi_daily': fc_result.get('rsi_daily', 50),
         'rsi_weekly': fc_result.get('rsi_weekly', 50),
         'market_state': fc_result.get('market_state', 'CRAB'),
+        # 因子分解
         'weights_used': fc_fusion.get('weights_used', {}),
         'raw_scores': fc_fusion.get('raw_scores', {}),
+        # 因子详情 (v3 新增)
+        'xmm_action': xmm_src.get('action', 'HOLD'),
+        'xmm_reason': xmm_src.get('reason', ''),
+        'xmm_trend': xmm_src.get('trend', 'UNKNOWN'),
+        'xmm_position_size': xmm_src.get('position_size', 0),
+        'xmm_td_count': xmm_src.get('td_count', 0),
+        'xmm_status': fc_status.get('xmm', 'SKIPPED'),
+        'vp_state': vp_src.get('state', 'unknown'),
+        'vp_vah': vp_src.get('vah', 0),
+        'vp_val': vp_src.get('val', 0),
+        'vp_poc': vp_src.get('poc', 0),
+        'vp_direction': vp_src.get('direction', 'HOLD'),
+        'vp_status': fc_status.get('vp', 'SKIPPED'),
+        'llm_sentiment': llm_src.get('sentiment_score', 0),
+        'llm_summary': llm_src.get('event_summary', ''),
+        'llm_event_type': llm_src.get('event_type', ''),
+        'llm_status': fc_status.get('llm', 'SKIPPED'),
+        # HardGate
+        'gate_approved': fc_result.get('gate', {}).get('approved', True),
+        'gate_reasons': fc_result.get('gate', {}).get('reject_reasons', []),
+        # 数据新鲜度
+        'stale_days': fc_result.get('stale_days', 0),
     }
 
 
