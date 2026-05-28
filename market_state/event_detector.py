@@ -87,27 +87,32 @@ class MarketEventDetector:
         if len(close) < lookback:
             return '数据不足'
 
+        # ── 展示窗口: 最近 lookback 根 K 线（LLM 看到的价格特征）──
         c = [float(x) for x in close[-lookback:]]
         h = [float(x) for x in high[-lookback:]]
         l = [float(x) for x in low[-lookback:]]
         v = [float(x) for x in volume[-lookback:]]
 
-        # 日涨跌幅
+        # 日涨跌幅（基于展示窗口）
         rets = [(c[i]/c[i-1]-1)*100 for i in range(1, len(c))]
 
-        # 量比
+        # 量比（基于展示窗口）
         vol_avg = np.mean(v) if v else 1
         vol_ratio = v[-1] / vol_avg if vol_avg > 0 else 1.0
 
-        # 振幅
+        # 振幅（基于展示窗口）
         amplitude = [(h[i]-l[i])/c[i]*100 for i in range(len(c))]
 
-        # RSI 14 简算
-        gains = [max(0, r) for r in rets]
-        losses = [max(0, -r) for r in rets]
+        # ── RSI 14: 使用独立的、更长的数据窗口计算（至少 30 根 K 线）──
+        # 与展示窗口的 lookback 分离，确保 RSI 计算精度
+        rsi_window = min(30, len(close))       # 最多用 30 根（足够稳定），最少用 len(close)
+        c_rsi = [float(x) for x in close[-rsi_window:]]
+        rets_rsi = [(c_rsi[i]/c_rsi[i-1]-1)*100 for i in range(1, len(c_rsi))]
+        gains = [max(0, r) for r in rets_rsi]
+        losses = [max(0, -r) for r in rets_rsi]
         avg_gain = np.mean(gains[-14:]) if len(gains) >= 14 else np.mean(gains)
         avg_loss = np.mean(losses[-14:]) if len(losses) >= 14 else np.mean(losses)
-        rsi = 100 - 100/(1 + avg_gain/(avg_loss + 1e-10))
+        rsi = 100 - 100 / (1 + avg_gain / (avg_loss + 1e-10))
 
         # 组装摘要
         lines = []
@@ -117,7 +122,7 @@ class MarketEventDetector:
         lines.append(f'最新振幅: {amplitude[-1]:.2f}%')
         lines.append(f'RSI14: {rsi:.1f}')
 
-        # 连涨/连跌天数
+        # 连涨/连跌天数（基于展示窗口）
         streak = 0
         direction = 0
         for r in reversed(rets):
@@ -253,23 +258,35 @@ class MarketEventDetector:
         price_summary = self._build_price_summary(price_data)
         signal_summary = self._build_signal_summary(recent_signals or [])
 
-        prompt = f"""你是量化市场情绪分析师。分析以下标的的短期市场情绪和事件。
+        prompt = f"""You are a strict, objective Quantitative Market Analyst. Evaluate the short-term sentiment and momentum of the following asset based ONLY on the provided data.
 
-标的: {symbol}
-市场状态: {market_state}
+Asset: {symbol}
+Current Market Regime: {market_state}
 
-近期K线特征:
+Regime Definition:
+- If regime is 'CRAB', the market is range-bound and mean-reverting. Do NOT interpret 'CRAB' as a bearish or negative signal. It implies low volatility and neutral baseline sentiment.
+
+Recent Price Action (Last 10 bars):
 {price_summary}
 
-近期信号变化:
+Recent Signal History:
 {signal_summary}
 
-基于以上数据，自由判断:
-1. sentiment_score: [-100,+100] (正=看多情绪, 负=看空情绪, 0=中性)
-2. event_type: none/momentum_shift/volume_anomaly/reversal_signal/breakout (可自定义扩展)
-3. 一句话描述当前情绪状态
+Instructions:
+You must perform an evidence-based evaluation before scoring. 
+1. Identify bullish evidence (e.g., oversold RSI, support held).
+2. Identify bearish evidence (e.g., consecutive drops, moving average breakdown).
+3. If the market is in 'CRAB' regime, your sentiment_score MUST be tightly bounded within [-30, +30] UNLESS there is overwhelming evidence of a volume anomaly or structural breakout.
 
-请以JSON格式输出(无markdown)，字段包含 sentiment_score, event_type, summary, confidence 即可。"""
+Output format MUST be valid JSON only (no markdown blocks, no extra text):
+{{
+  "bullish_factors": "briefly list positive signals",
+  "bearish_factors": "briefly list negative signals",
+  "sentiment_score": integer between -100 and +100,
+  "event_type": "none | momentum_shift | volume_anomaly | reversal_signal | breakout",
+  "summary": "One sentence strictly summarizing the weight of evidence.",
+  "confidence": integer between 0 and 100
+}}"""
 
         try:
             t0 = time.time()
