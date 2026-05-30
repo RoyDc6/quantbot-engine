@@ -49,3 +49,10 @@ paper_trading/signals/
 
 # Backup archives (separate repos: skills-backup / quantbot-backup)
 backups/
+
+# WorkBuddy workspace data (generated, not source code)
+.workbuddy/
+nul
+
+# Generated scan output (regenerated each run)
+scan_result_*.json

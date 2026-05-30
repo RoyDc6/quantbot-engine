@@ -19,6 +19,8 @@ from typing import Optional, List, Dict, Tuple, Any
 import numpy as np
 import pandas as pd
 
+from config import LLM_MODEL as _LLM_MODEL  # ⛔ 锁定 L-001 — 禁止直接写模型名字符串
+
 # ─── 路径注入 ──────────────────────────────────────────────────
 BASE = Path(__file__).resolve().parent.parent  # E:\quant
 XMM_PATH = str(BASE / 'xmm-strategy')
@@ -171,7 +173,7 @@ class FusionController:
     @property
     def llm(self):
         if self._llm is None and LLM_AVAILABLE and LLMBiasModel:
-            model_name = self.config.get('llm_model', 'mistralai/mixtral-8x7b-instruct-v0.1')
+            model_name = self.config.get('llm_model', _LLM_MODEL)  # ⛔ 锁定 L-001
             self._llm = LLMBiasModel(model_name=model_name)
         return self._llm
 

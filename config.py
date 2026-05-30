@@ -106,6 +106,28 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SIGNAL_DIR = os.path.join(BASE_DIR, 'paper_trading', 'signals')
 OUTPUT_DIR = os.path.join(BASE_DIR, 'output')
 
+# === LLM 情绪模型 ==================================================
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  【锁定标记 L-001】LLM 情绪因子模型名                        ║
+# ║  此值不可由 AI 自动修改。修改必须经 Roy 明确授权。              ║
+# ║  2026-05-30 经6标的×4模型横评确认:                            ║
+# ║    mixtral-8x7b (旧) → 连续下跌场景系统性误判                ║
+# ║    llama-4-maverick (新) → 6/6价格理解, 9.9s                 ║
+# ╚══════════════════════════════════════════════════════════════╝
+LLM_MODEL = 'meta/llama-4-maverick-17b-128e-instruct'
+# 所有代码必须通过此配置读取，禁止在代码中直接写模型名字符串。
+
+# === FusionEngine 三因子权重 =========================================
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  【锁定标记 L-002】FusionEngine 三因子权重                    ║
+# ║  此组值不可由 AI 自动修改。修改必须经 Roy 明确授权。            ║
+# ║  定义: XMM 60% / VP 25% / LLM 15%                          ║
+# ║  使用: fusion_framework/fusion_engine.py → self.BASE_WEIGHTS║
+# ╚══════════════════════════════════════════════════════════════╝
+XMM_WEIGHT = 0.60
+VP_WEIGHT = 0.25
+LLM_WEIGHT = 0.15
+
 # === TickFlow API Key 自动注入 ====================================
 # 优先从环境变量读取，其次从 Windows 注册表读取
 if not os.environ.get('TICKFLOW_API_KEY'):

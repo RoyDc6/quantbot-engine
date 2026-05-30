@@ -26,6 +26,7 @@ from typing import Dict, Optional, List, Any
 
 from fusion_framework.signal_types import DecisionSignal
 from market_state.event_detector import MarketEventDetector
+import config
 
 logger = logging.getLogger('LLM_BIAS_MODEL')
 logger.setLevel(logging.INFO)
@@ -44,9 +45,9 @@ class LLMBiasModel:
     """
 
     def __init__(self, name: str = "LLM_Bias_Model",
-                 model_name: str = 'mistralai/mixtral-8x7b-instruct-v0.1'):
+                 model_name: str = None):
         self.name = name
-        self._detector = MarketEventDetector(model=model_name)
+        self._detector = MarketEventDetector(model=model_name or config.LLM_MODEL)
         self._last_run_date: Optional[datetime.date] = None
         self._batch_cache: Dict[str, DecisionSignal] = {}
 

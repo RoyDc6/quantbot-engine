@@ -11,13 +11,17 @@ MarketEventDetector — LLM 驱动的市场情绪/事件检测器
 约束:
 - 每个标的同一天最多 1 次 LLM 调用（带缓存）
 - Token 控制: prompt < 500 tokens, max_tokens=200
-- 模型: mistralai/mixtral-8x7b-instruct-v0.1 (快速 2-3s)
+- 模型: meta/llama-4-maverick-17b-128e-instruct (快速 2-3s)
 """
 
 import sys, os, json, re, time
 from datetime import datetime
 from pathlib import Path
 import numpy as np
+
+# 所有 LLM 模型名必须从 config.py 读取，禁止硬编码
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import config
 
 sys.path.insert(0, r'C:\Users\RoyGoode\.workbuddy\skills\nvidia-api\scripts')
 
@@ -43,8 +47,8 @@ class MarketEventDetector:
     - 输出经过 FusionEngine/HardGate 纯规则后才到执行层
     """
 
-    def __init__(self, model='mistralai/mixtral-8x7b-instruct-v0.1'):
-        self.model = model
+    def __init__(self, model=None):
+        self.model = model or config.LLM_MODEL
         self._cache = {}  # {symbol+date: result}
 
     def _cache_key(self, symbol, date):
@@ -353,7 +357,7 @@ Output format MUST be valid JSON only (no markdown blocks, no extra text):
         if not NIM_AVAILABLE or not tickers_data:
             return {}
 
-        model = model or 'meta/llama-4-maverick-17b-128e-instruct'
+        model = model or config.LLM_MODEL  # ⛔ 锁定 L-001
         today = datetime.now().strftime('%Y-%m-%d')
         all_results = {}
 

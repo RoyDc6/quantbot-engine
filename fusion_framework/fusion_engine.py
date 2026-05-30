@@ -9,6 +9,9 @@ import numpy as np
 from typing import List, Dict, Optional, Tuple
 from dataclasses import asdict
 
+# ⛔ 锁定 L-002 — 权重建构使用 config.LLM_WEIGHT
+import config as _cfg
+
 # 安全导入 signal_types（兼容直接运行和包内导入）
 if 'fusion_framework.signal_types' in sys.modules:
     from .signal_types import (
@@ -87,8 +90,9 @@ class FusionEngine:
         # 主攻手 XMM 60% | 阵地盾 VP 25% | 侦察兵 LLM 15%
         # 此权重为硬编码常量，不随市场状态变化。
         # 断流时：异常源权重归零，剩余存活源按比例重新归一化。
+        # ⛔ LLM 权重锁定 L-002 — 已提取至 config.LLM_WEIGHT，修改需 Roy 授权
         # ═══════════════════════════════════════════════════════════
-        self.BASE_WEIGHTS = {'XMM': 0.60, 'VP': 0.25, 'LLM': 0.15}
+        self.BASE_WEIGHTS = {'XMM': _cfg.XMM_WEIGHT, 'VP': _cfg.VP_WEIGHT, 'LLM': _cfg.LLM_WEIGHT}
 
     def fuse(self, fm_signal: Optional[FusionModelSignal],
              xmm_signal: Optional[XMMSignal],
