@@ -15,7 +15,7 @@ except Exception as e:
     print(f'美股数据获取失败: {e}')
 
 print('\n=== 港股核心标的 ===')
-hk_stocks = ['HK.00700', 'HK.09988', 'HK.01810', 'HK.03690', 'HK.09618', 'HK.02318']
+hk_stocks = ['HK.00700', 'HK.09988', 'HK.03690', 'HK.01024', 'HK.01810', 'HK.00981', 'HK.02513']
 for stock in hk_stocks:
     try:
         data = q.get_market_snapshot([stock])

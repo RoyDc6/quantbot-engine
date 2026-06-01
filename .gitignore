@@ -38,8 +38,13 @@ config.local.py
 # HuggingFace cache
 .huggingface/
 
-# Reports (generated)
-reports/
+# Reports (generated .md files, but track .py scripts)
+reports/*.md
+reports/*.html
+paper_trading/reports/*.md
+
+# Runtime state (regenerated on each run)
+hk_trader/state/
 
 # LLM event cache (transient, regenerated daily)
 market_state/event_cache/
