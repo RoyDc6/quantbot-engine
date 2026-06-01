@@ -168,3 +168,9 @@ assets:
     adapter: CryptoAdapter
     params: { market: Crypto, exchange: OKX }
     enabled: true
+
+  - ticker: DOGE.USDT
+    name: Dogecoin
+    adapter: CryptoAdapter
+    params: { market: Crypto, exchange: OKX }
+    enabled: true
