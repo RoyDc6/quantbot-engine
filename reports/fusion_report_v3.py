@@ -154,6 +154,7 @@ def generate_v3_report(date: str, market: str,
     md = _build_header(date, market, market_state, vix_regime, trend, momentum, state_pos_limit)
     md += _build_account_section(total_assets, cash, pos_value, n_positions)
     md += _build_signal_summary(signals, all_buy, sells, reduced, holds, errors)
+    md += _build_factor_view_section(signals)
     md += _build_full_matrix(signals, prev_signals)
     md += _build_factor_decomposition(all_buy, reduced, sells)
     md += _build_delta_section(signals, prev_signals, date)
@@ -252,10 +253,10 @@ def _build_full_matrix(signals, prev_signals):
 
     prev_map = {p['symbol']: p for p in prev_signals}
 
-    s = f"""## IV. 全量信号矩阵 ({len(signals)} 标的)
+    s = f"""## V. 全量信号矩阵 ({len(signals)} 标的)
 
-| # | 标的 | 现价 | RSI日 | RSI周 | 信号 | 融合分 | 置信度 | XMM分 | VP分 | LLM分 | 权重 | 仓位 | 变动 | 根因 |
-|---|------|------|-------|-------|------|--------|--------|-------|------|-------|------|------|------|------|
+| # | 标的 | 现价 | RSI日 | RSI周 | 信号 | 融合分 | 置信度 | 三因子观点 | XMM分 | VP分 | LLM分 | 权重 | 仓位 | 变动 | 根因 |
+|---|------|------|-------|-------|------|--------|--------|------------|-------|------|-------|------|------|------|------|
 """
 
     sorted_signals = sorted(signals, key=lambda x: x.get('fusion_score', 0), reverse=True)
@@ -299,11 +300,52 @@ def _build_full_matrix(signals, prev_signals):
 
         # 根因分析
         root_cause = _extract_root_cause(sig)
+        factor_view = _factor_view_summary(sig)
 
         rsi_d_icon = _rsi_color(rsi_d)
         rsi_w_icon = _rsi_color(rsi_w)
 
-        s += f"| {i} | {display_name} | {close:.2f} | {rsi_d_icon}{rsi_d:.0f} | {rsi_w_icon}{rsi_w:.0f} | {icon}**{level}** | **{score:+.1f}** | {conf:.0%} | {xmm_raw:+.0f} | {vp_raw:+.0f} | {llm_raw:+.0f} | {weight_str} | {target_pos:.0%} | {delta_str} | {root_cause} |\n"
+        s += f"| {i} | {display_name} | {close:.2f} | {rsi_d_icon}{rsi_d:.0f} | {rsi_w_icon}{rsi_w:.0f} | {icon}**{level}** | **{score:+.1f}** | {conf:.0%} | {factor_view} | {xmm_raw:+.0f} | {vp_raw:+.0f} | {llm_raw:+.0f} | {weight_str} | {target_pos:.0%} | {delta_str} | {root_cause} |\n"
+
+    s += "\n"
+    return s
+
+
+def _build_factor_view_section(signals):
+    """三因子直接观点 — 先展示各因子的独立买卖观点，再看融合结果。"""
+    if not signals:
+        return ""
+
+    sorted_signals = sorted(signals, key=lambda x: x.get('fusion_score', 0), reverse=True)
+
+    s = f"""## IV. 三因子直接观点 ({len(signals)} 标的)
+
+> 每个因子独立亮牌：买入 / 卖出 / 观望。这里不代表最终下单，最终执行仍由融合分、置信度和 Gate 决定。
+
+| 标的 | XMM观点 | VP观点 | LLM观点 | 三因子一致性 | 融合信号 | Gate |
+|------|---------|--------|---------|--------------|----------|------|
+"""
+
+    for sig in sorted_signals:
+        sym = sig.get('symbol', '?')
+        name = SYMBOL_MAP.get(sym, '')
+        display_name = f"{sym}" if not name else f"{sym}<br><sub>{name}</sub>"
+        xmm_view = _xmm_view(sig)
+        vp_view = _vp_view(sig)
+        llm_view = _llm_view(sig)
+        consensus = _factor_consensus_label(sig)
+        level = sig.get('fusion_level', '?')
+        score = sig.get('fusion_score', 0)
+        conf = sig.get('fusion_confidence', 0)
+        gate = '通过' if sig.get('gate_approved', True) else '拦截'
+        gate_reasons = sig.get('gate_reasons', [])
+        if gate_reasons:
+            gate += f"<br><sub>{_safe_cell_text(gate_reasons[0], 35)}</sub>"
+
+        s += (
+            f"| {display_name} | {xmm_view} | {vp_view} | {llm_view} | {consensus} | "
+            f"{SIGNAL_LEVEL_EMOJI.get(level, '⬜')}**{level}** {score:+.1f}<br><sub>置信度 {conf:.0%}</sub> | {gate} |\n"
+        )
 
     s += "\n"
     return s
@@ -314,7 +356,7 @@ def _build_factor_decomposition(all_buy, reduced, sells):
     if not all_buy and not reduced and not sells:
         return ""
 
-    s = "## V. 三因子加权分解\n\n"
+    s = "## VI. 三因子加权分解\n\n"
 
     for group_name, group_signals in [
         ('BUY 信号', all_buy),
@@ -398,7 +440,7 @@ def _build_delta_section(signals, prev_signals, date):
     if not changes:
         return ""
 
-    s = f"""## VI. 信号变动对比 (vs {prev_date})
+    s = f"""## VII. 信号变动对比 (vs {prev_date})
 
 > 仅列出融合分变动 ≥5 或信号等级发生变化的标的
 
@@ -416,7 +458,7 @@ def _build_delta_section(signals, prev_signals, date):
 
 def _build_execution_tracking(orders, positions, signals, market):
     """执行层追踪 — 哪些信号被执行，哪些被跳过."""
-    s = "## VII. 执行追踪\n\n"
+    s = "## VIII. 执行追踪\n\n"
 
     # 今日订单
     buy_orders = [o for o in orders if o.get('action') == 'BUY']
@@ -474,7 +516,7 @@ def _build_execution_tracking(orders, positions, signals, market):
 
 def _build_risk_dashboard(positions, signals):
     """风控仪表板."""
-    s = "## VIII. 风控仪表板\n\n"
+    s = "## IX. 风控仪表板\n\n"
 
     if positions:
         s += "### 持仓状态\n\n"
@@ -512,7 +554,7 @@ def _build_risk_dashboard(positions, signals):
 
 def _build_strategy_notes(signals, market_state, market):
     """策略备注 — 关键观察."""
-    s = "## IX. 策略备注\n\n"
+    s = "## X. 策略备注\n\n"
 
     # 统计异常
     all_buy = [sig for sig in signals if sig.get('fusion_level') in ('STRONG_BUY', 'BUY')]
@@ -582,6 +624,195 @@ def _build_strategy_notes(signals, market_state, market):
 # ═══════════════════════════════════════════════════════════════════
 # 辅助函数
 # ═══════════════════════════════════════════════════════════════════
+
+def _xmm_view(sig: dict) -> str:
+    """XMM 独立观点。"""
+    status = sig.get('xmm_status', 'OK')
+    if status != 'OK':
+        return f'⚪无数据<br><sub>{status}</sub>'
+
+    action = str(sig.get('xmm_action', 'HOLD')).upper()
+    raw = sig.get('raw_scores', {}).get('xmm', 0)
+    reason = sig.get('xmm_reason', '')
+    trend = sig.get('xmm_trend', '')
+    detail = reason or (f'趋势:{trend}' if trend else '')
+
+    if action in ('BUY', 'STRONG_BUY') or raw >= 30:
+        label = '🟢买入'
+    elif action in ('SELL', 'STRONG_SELL') or raw <= -30:
+        label = '🔴卖出'
+    else:
+        label = '⬜观望'
+
+    return _view_cell(label, raw, detail)
+
+
+def _vp_view(sig: dict) -> str:
+    """VP 独立观点。"""
+    status = sig.get('vp_status', 'OK')
+    if status != 'OK':
+        return f'⚪无数据<br><sub>{status}</sub>'
+
+    direction = str(sig.get('vp_direction', 'HOLD')).upper()
+    raw = sig.get('raw_scores', {}).get('vp', 0)
+    state = sig.get('vp_state', '')
+    state_map = {
+        'above_box': '上轨外',
+        'below_box': '下轨外',
+        'inside_box': '箱体内',
+    }
+    detail = state_map.get(state, state)
+
+    if direction in ('BUY', 'STRONG_BUY') or raw >= 30:
+        label = '🟢买入'
+    elif direction in ('SELL', 'STRONG_SELL') or raw <= -30:
+        label = '🔴卖出'
+    else:
+        label = '⬜观望'
+
+    return _view_cell(label, raw, detail)
+
+
+def _llm_view(sig: dict) -> str:
+    """LLM 独立观点。"""
+    status = sig.get('llm_status', 'OK')
+    if status != 'OK':
+        return f'⚪无数据<br><sub>{status}</sub>'
+
+    raw = sig.get('raw_scores', {}).get('llm', sig.get('llm_sentiment', 0))
+    event = sig.get('llm_event_type', '')
+    summary = sig.get('llm_summary', '')
+    detail = event if event and event != 'none' else summary
+
+    if raw >= 30:
+        label = '🟢买入'
+    elif raw >= 10:
+        label = '🟢偏多'
+    elif raw <= -30:
+        label = '🔴卖出'
+    elif raw <= -10:
+        label = '🔴偏空'
+    else:
+        label = '⬜观望'
+
+    return _view_cell(label, raw, detail)
+
+
+def _factor_view_summary(sig: dict) -> str:
+    """全量矩阵中的紧凑三因子观点。"""
+    return '<br>'.join([
+        f"XMM {_compact_view(sig, 'xmm')}",
+        f"VP {_compact_view(sig, 'vp')}",
+        f"LLM {_compact_view(sig, 'llm')}",
+    ])
+
+
+def _compact_view(sig: dict, factor: str) -> str:
+    """返回紧凑观点：买入/卖出/观望 + 分数。"""
+    raw = sig.get('raw_scores', {}).get(factor, 0)
+    if factor == 'xmm':
+        status = sig.get('xmm_status', 'OK')
+        action = str(sig.get('xmm_action', 'HOLD')).upper()
+        if status != 'OK':
+            return '无数据'
+        if action in ('BUY', 'STRONG_BUY') or raw >= 30:
+            return f'买入({raw:+.0f})'
+        if action in ('SELL', 'STRONG_SELL') or raw <= -30:
+            return f'卖出({raw:+.0f})'
+        return f'观望({raw:+.0f})'
+
+    if factor == 'vp':
+        status = sig.get('vp_status', 'OK')
+        direction = str(sig.get('vp_direction', 'HOLD')).upper()
+        if status != 'OK':
+            return '无数据'
+        if direction in ('BUY', 'STRONG_BUY') or raw >= 30:
+            return f'买入({raw:+.0f})'
+        if direction in ('SELL', 'STRONG_SELL') or raw <= -30:
+            return f'卖出({raw:+.0f})'
+        return f'观望({raw:+.0f})'
+
+    status = sig.get('llm_status', 'OK')
+    if status != 'OK':
+        return '无数据'
+    if raw >= 30:
+        return f'买入({raw:+.0f})'
+    if raw >= 10:
+        return f'偏多({raw:+.0f})'
+    if raw <= -30:
+        return f'卖出({raw:+.0f})'
+    if raw <= -10:
+        return f'偏空({raw:+.0f})'
+    return f'观望({raw:+.0f})'
+
+
+def _factor_consensus_label(sig: dict) -> str:
+    """三因子一致性标签。"""
+    directions = [
+        _direction_bucket(sig, 'xmm'),
+        _direction_bucket(sig, 'vp'),
+        _direction_bucket(sig, 'llm'),
+    ]
+    bullish = directions.count('bull')
+    bearish = directions.count('bear')
+    neutral = directions.count('neutral')
+
+    if bullish == 3:
+        return '🟢三因子共振多'
+    if bearish == 3:
+        return '🔴三因子共振空'
+    if bullish >= 1 and bearish >= 1:
+        return '🟡多空分歧'
+    if bullish == 2 and neutral == 1:
+        return '🟢两多一中'
+    if bearish == 2 and neutral == 1:
+        return '🔴两空一中'
+    if bullish == 1 and neutral == 2:
+        return '🟢一多两中'
+    if bearish == 1 and neutral == 2:
+        return '🔴一空两中'
+    return '⬜三因子观望'
+
+
+def _direction_bucket(sig: dict, factor: str) -> str:
+    """把因子观点归入 bull / bear / neutral。"""
+    raw = sig.get('raw_scores', {}).get(factor, 0)
+    if factor == 'xmm':
+        action = str(sig.get('xmm_action', 'HOLD')).upper()
+        if action in ('BUY', 'STRONG_BUY') or raw >= 30:
+            return 'bull'
+        if action in ('SELL', 'STRONG_SELL') or raw <= -30:
+            return 'bear'
+        return 'neutral'
+    if factor == 'vp':
+        direction = str(sig.get('vp_direction', 'HOLD')).upper()
+        if direction in ('BUY', 'STRONG_BUY') or raw >= 30:
+            return 'bull'
+        if direction in ('SELL', 'STRONG_SELL') or raw <= -30:
+            return 'bear'
+        return 'neutral'
+    if raw >= 10:
+        return 'bull'
+    if raw <= -10:
+        return 'bear'
+    return 'neutral'
+
+
+def _view_cell(label: str, raw: float, detail: str = '') -> str:
+    """格式化独立观点单元格。"""
+    detail = _safe_cell_text(detail, 22)
+    if detail:
+        return f'{label}<br><sub>{raw:+.0f} · {detail}</sub>'
+    return f'{label}<br><sub>{raw:+.0f}</sub>'
+
+
+def _safe_cell_text(value: str, max_len: int) -> str:
+    """Markdown 表格单元格安全文本。"""
+    text = str(value or '').replace('|', ' ').replace('\n', ' ').strip()
+    if len(text) > max_len:
+        return text[:max_len - 2] + '..'
+    return text
+
 
 def _load_prev_signals(date: str, market: str) -> list:
     """加载前一交易日的信号数据。"""
