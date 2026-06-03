@@ -11,8 +11,10 @@ import sys, os, json, argparse
 from pathlib import Path
 from datetime import datetime
 
-BASE = Path('E:/quant')
-sys.path.insert(0, str(BASE))
+_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_ROOT))
+from core.paths import PROJECT_ROOT
+BASE = PROJECT_ROOT
 
 import warnings
 warnings.filterwarnings('ignore')

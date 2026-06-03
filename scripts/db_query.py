@@ -18,8 +18,9 @@ from pathlib import Path
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
-BASE = Path('E:/quant')
-sys.path.insert(0, str(BASE))
+_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_ROOT))
+from core.paths import PROJECT_ROOT
 
 from core.quant_db import QuantDB
 

@@ -29,7 +29,8 @@ except Exception:
 warnings.filterwarnings('ignore')
 
 # === 路径 =========================================================
-BASE = Path('E:/quant')
+from core.paths import PROJECT_ROOT
+BASE = PROJECT_ROOT
 sys.path.insert(0, str(BASE))
 
 # === 导入核心模块 ==================================================

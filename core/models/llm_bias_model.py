@@ -31,7 +31,9 @@ import config
 logger = logging.getLogger('LLM_BIAS_MODEL')
 logger.setLevel(logging.INFO)
 
-CACHE_DIR = Path('E:/quant/market_state/event_cache')
+from core.paths import EVENT_CACHE_DIR
+
+CACHE_DIR = EVENT_CACHE_DIR
 
 
 class LLMBiasModel:

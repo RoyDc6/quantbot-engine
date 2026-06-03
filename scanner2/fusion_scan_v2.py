@@ -12,13 +12,16 @@ warnings.filterwarnings('ignore')
 import pandas as pd
 import numpy as np
 
-BASE_DIR   = Path('E:/quant')
-CACHE_DIR  = BASE_DIR / 'scanner2' / 'cache'
-OUTPUT_DIR = BASE_DIR / 'output'
+_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_ROOT))
+from core.paths import PROJECT_ROOT, SCANNER2_CACHE
+from core.paths import OUTPUT_DIR as _OUTPUT_DIR
+BASE_DIR   = PROJECT_ROOT
+CACHE_DIR  = SCANNER2_CACHE
+OUTPUT_DIR = _OUTPUT_DIR
 FW_DIR     = BASE_DIR / 'fusion_framework'
 SKILL_DIR  = Path('C:/Users/RoyGoode/.workbuddy\skills/xmm-strategy/scripts')
 
-sys.path.insert(0, str(BASE_DIR))
 sys.path.insert(0, str(FW_DIR))
 sys.path.insert(0, str(SKILL_DIR))
 sys.stdout.reconfigure(encoding='utf-8')
@@ -276,5 +279,5 @@ if reduced:
         print(f'    {r["code"]:<8} {r["name"][:12]:<12} '
               f'fm={r["fm_signal"]} xmm={r["xmm_signal"]} | {r["warnings"]}')
 
-print(f'\n  [SAVED] E:/quant/output/fusion_framework_HK_{ts}.csv')
+print(f'\n  [SAVED] {OUTPUT_DIR}/fusion_framework_HK_{ts}.csv')
 print('=' * 70)

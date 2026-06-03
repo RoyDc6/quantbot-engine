@@ -17,12 +17,14 @@ from datetime import datetime
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
-BASE = Path('E:/quant')
+_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_ROOT))
+from core.paths import PROJECT_ROOT
+BASE = PROJECT_ROOT
 PT   = BASE / 'paper_trading'
 FW   = BASE / 'fusion_framework'
 SKILL = Path('C:/Users/RoyGoode/.workbuddy/skills/xmm-strategy/scripts')
 
-sys.path.insert(0, str(BASE))
 sys.path.insert(0, str(FW))
 sys.path.insert(0, str(SKILL))
 

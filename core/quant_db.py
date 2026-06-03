@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 import pandas as pd
 
-DB_PATH = Path('E:/quant/quant.db')
+from core.paths import DB_PATH as _DB_PATH
+DB_PATH = _DB_PATH
 
 
 class QuantDB:

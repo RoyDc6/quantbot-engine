@@ -19,11 +19,12 @@ import numpy as np
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
-BASE = Path('E:/quant')
+_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_ROOT))
+from core.paths import PROJECT_ROOT
+BASE = PROJECT_ROOT
 SIGNALS_DIR = BASE / 'paper_trading' / 'signals'
 HISTORY_FILE = BASE / 'backtest' / 'factor_ic_history.json'
-
-sys.path.insert(0, str(BASE))
 
 
 # ─── 加载信号数据 ─────────────────────────────────────

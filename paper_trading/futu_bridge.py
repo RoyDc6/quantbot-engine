@@ -14,11 +14,13 @@ from datetime import datetime
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 warnings_issued = False
 
-BASE = Path('E:/quant')
+_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_ROOT))
+from core.paths import PROJECT_ROOT
+BASE = PROJECT_ROOT
 PT = BASE / 'paper_trading'
 FW_TRADER = BASE / 'futu_trader'
 
-sys.path.insert(0, str(BASE))
 sys.path.insert(0, str(FW_TRADER))
 
 FUTU_HOST = '127.0.0.1'

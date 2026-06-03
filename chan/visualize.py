@@ -14,6 +14,8 @@ except ImportError:
     HAS_MPLFINANCE = False
     print("[WARNING] mplfinance not installed, visualization disabled")
 
+from core.paths import OUTPUT_DIR as _OUTPUT_DIR_CHAN
+
 
 def plot_chan_structure(
     df: pd.DataFrame,
@@ -138,8 +140,10 @@ def plot_chan_structure(
 def plot_simple_chan(
     df: pd.DataFrame,
     strokes: List,
-    output_dir: str = 'E:/quant/output',
+    output_dir: Optional[str] = None,
 ) -> str:
+    if output_dir is None:
+        output_dir = str(_OUTPUT_DIR_CHAN)
     """
     简化版可视化（仅K线+笔）
     

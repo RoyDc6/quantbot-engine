@@ -7,11 +7,14 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
+_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, 'C:/Users/RoyGoode/.workbuddy\skills/xmm-strategy/scripts')
 from xmm_signals import XMMSignalEngine
 
-CACHE_DIR = 'E:/quant/scanner2/cache'
-OUTPUT_DIR = 'E:/quant/output'
+from core.paths import SCANNER2_CACHE, OUTPUT_DIR
+CACHE_DIR = str(SCANNER2_CACHE)
+OUTPUT_DIR = str(_ROOT / 'output')
 
 
 def load_json_kline(filepath):

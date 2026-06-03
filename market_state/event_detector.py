@@ -32,7 +32,8 @@ try:
 except ImportError:
     NIM_AVAILABLE = False
 
-BASE = Path('E:/quant')
+from core.paths import PROJECT_ROOT
+BASE = PROJECT_ROOT
 CACHE_DIR = BASE / 'market_state' / 'event_cache'
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 

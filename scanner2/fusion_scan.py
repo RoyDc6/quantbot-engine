@@ -21,11 +21,15 @@ from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
 
-BASE_DIR   = Path('E:/quant')
-OUTPUT_DIR = BASE_DIR / 'output'
+_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_ROOT))
+from core.paths import PROJECT_ROOT
+from core.paths import OUTPUT_DIR as _OUTPUT_DIR
+BASE_DIR   = PROJECT_ROOT
+OUTPUT_DIR = _OUTPUT_DIR
+
 SKILL_DIR  = Path('C:/Users/RoyGoode/.workbuddy/skills/xmm-strategy/scripts')
 
-sys.path.insert(0, str(BASE_DIR))
 sys.path.insert(0, str(SKILL_DIR))
 sys.stdout.reconfigure(encoding='utf-8')
 

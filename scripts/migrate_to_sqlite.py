@@ -8,13 +8,14 @@ scripts/migrate_to_sqlite.py - 从 JSON/CSV 文件迁移数据到 quant.db
 
 import sys, io, os, json, argparse
 from pathlib import Path
-from datetime import datetime
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
-BASE = Path('E:/quant')
-sys.path.insert(0, str(BASE))
+_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_ROOT))
+from core.paths import PROJECT_ROOT
+BASE = PROJECT_ROOT
 
 from core.quant_db import QuantDB
 

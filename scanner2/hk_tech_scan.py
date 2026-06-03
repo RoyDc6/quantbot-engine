@@ -26,9 +26,15 @@ from datetime import datetime, timedelta
 
 warnings.filterwarnings('ignore')
 
-BASE_DIR = Path('E:/quant')
-CACHE_DIR = BASE_DIR / 'scanner2' / 'cache'
-OUTPUT_DIR = BASE_DIR / 'output'
+_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_ROOT))
+from core.paths import PROJECT_ROOT, SCANNER2_CACHE
+from core.paths import OUTPUT_DIR as _OUTPUT_DIR
+BASE_DIR = PROJECT_ROOT
+CACHE_DIR = SCANNER2_CACHE
+OUTPUT_DIR = _OUTPUT_DIR
+CACHE_DIR.mkdir(exist_ok=True)
+OUTPUT_DIR.mkdir(exist_ok=True)
 CACHE_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
 

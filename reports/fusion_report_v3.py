@@ -30,7 +30,10 @@ try:
 except Exception:
     pass
 
-BASE = Path('E:/quant')
+_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_ROOT))
+from core.paths import PROJECT_ROOT
+BASE = PROJECT_ROOT
 REPORT_DIR = BASE / 'reports'
 SIGNAL_DIR = BASE / 'paper_trading' / 'signals'
 

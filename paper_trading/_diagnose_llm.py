@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Diagnose LLM factor scoring: fetch real data and run full pipeline."""
 import sys, os
-sys.path.insert(0, r'E:\quant')
-sys.path.insert(0, r'E:\quant\paper_trading')
+from pathlib import Path
+_BASE = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_BASE))
+sys.path.insert(0, str(_BASE / 'paper_trading'))
 
 # Force reload the NVIDIA API key
 os.environ['NVIDIA_API_KEY'] = 'REDACTED_NVIDIA_API_KEY'
@@ -10,7 +12,7 @@ os.environ['NVIDIA_API_KEY'] = 'REDACTED_NVIDIA_API_KEY'
 from llm_factor_factory.factor_scorer import score_factors, factor_to_signal_score, get_factor_summary, FACTORS
 
 # === Step 1: Get live data from daily_runner's fetch function ===
-sys.path.insert(0, r'E:\quant\paper_trading')
+sys.path.insert(0, str(_BASE / 'paper_trading'))
 from daily_runner import fetch_klines_futu
 
 print("=== Fetching SPY data via Futu ===")
