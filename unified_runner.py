@@ -99,14 +99,26 @@ def get_market_to_run(force_market=None):
 
 
 # === 主流程 ========================================================
-def run(market='HK', dry_run=True, signal_only=False, no_stop=False):
+def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
+        requested_live=False, live_confirmed=False):
     today = datetime.now().strftime('%Y-%m-%d')
     ts_start = datetime.now()
 
+    # 确定 execution_mode
+    should_block, _block_reasons = False, []
+    if signal_only:
+        execution_mode = 'DRY_RUN'
+    elif requested_live and live_confirmed:
+        execution_mode = 'LIVE_CONFIRMED'
+    elif requested_live and not live_confirmed:
+        execution_mode = 'LIVE_BLOCKED_BY_CONFIRM'
+    else:
+        execution_mode = 'DRY_RUN'
+
     print('=' * 65)
     print(f'  QuantBot Unified Runner v2.2')
+    print(f'  Execution Mode: {execution_mode}')
     print(f'  时间: {ts_start.strftime("%Y-%m-%d %H:%M:%S")} | 市场: {market}')
-    print(f'  模式: {"DRY-RUN" if dry_run else ">>> LIVE <<<"}')
     print('=' * 65)
 
     # Step 0: Futu 连接测试
@@ -339,6 +351,10 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False):
     available_cash = cash
     max_positions = 5
 
+    # Snapshot 原始值（订单生成前），供 pre-trade summary 使用
+    cash_before = cash
+    exposure_before = current_exposure
+
     # 卖出先释放现金（估算）
     for o in orders:
         if o['action'] == 'SELL':
@@ -410,23 +426,65 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False):
         current_exposure += trade_val
         print(f'  [BUY] {symbol} {first_shares}股 @ {price:.2f} = {trade_val:,.0f} ({level} score={sig["fusion_score"]:+.0f}){staged_info}')
 
-    # Step 7: 执行订单
+    # Step 4.5: Pre-Trade Summary + Live Gate (Phase B)
+    log_dir = BASE / 'output'
+    os.makedirs(log_dir, exist_ok=True)
+
+    if not signal_only:
+        pre_summary = _build_pre_trade_summary(
+            market=market,
+            requested_live=requested_live,
+            confirmed_live=live_confirmed,
+            account=account,
+            positions=positions,
+            orders=orders,
+            total_assets=total_assets,
+            cash_before=cash_before,
+            exposure_before=exposure_before,
+        )
+        should_block, block_reasons = _should_block_live(pre_summary)
+
+        # 填充最终 execution_mode
+        if requested_live and live_confirmed and not should_block:
+            execution_mode = 'LIVE_CONFIRMED'
+        elif requested_live and not live_confirmed:
+            execution_mode = 'LIVE_BLOCKED_BY_CONFIRM'
+        elif requested_live and live_confirmed and should_block:
+            execution_mode = 'LIVE_BLOCKED_BY_RULES'
+        else:
+            execution_mode = 'DRY_RUN'
+
+        pre_summary['execution_mode'] = execution_mode
+        _print_pre_trade_summary(pre_summary)
+        _save_guardrail_log(pre_summary, log_dir)
+
+        if execution_mode == 'LIVE_BLOCKED_BY_CONFIRM':
+            print(f'\n  [GUARDRAIL] Live 执行被拦截 (LIVE_BLOCKED_BY_CONFIRM)')
+            print(f'  [GUARDRAIL] 订单已生成但不执行。使用 --confirm-live 确认后重试。')
+        elif execution_mode == 'LIVE_BLOCKED_BY_RULES':
+            print(f'\n  [GUARDRAIL] Live 执行被风控规则拦截: {"; ".join(block_reasons)}')
+            print(f'  [GUARDRAIL] 请检查风险提示后重试。')
+
+    # Step 7: 执行订单（根据 execution_mode 决定）
     print(f'\n{"="*65}')
     print(f'  Step 5: 订单执行 ({len(orders)} 笔)')
+    print(f'  Mode: {execution_mode}')
     print(f'{"="*65}')
 
     if not orders:
         print('  无订单需要执行')
-    else:
+    elif execution_mode in ('LIVE_CONFIRMED', 'DRY_RUN'):
+        executor_dry_run = (execution_mode == 'DRY_RUN')
         executor = OrderExecutor(
             host=config.FUTU_HOST, port=config.FUTU_PORT,
-            dry_run=dry_run,
+            dry_run=executor_dry_run,
         )
-        log_dir = BASE / 'output'
-        os.makedirs(log_dir, exist_ok=True)
         ts_str = datetime.now().strftime('%Y%m%d_%H%M%S')
         log_path = str(log_dir / f'trades_{market}_{ts_str}.json')
         results = executor.execute_orders(orders, log_path=log_path)
+    elif execution_mode in ('LIVE_BLOCKED_BY_CONFIRM', 'LIVE_BLOCKED_BY_RULES'):
+        print(f'  [GUARDRAIL] 订单已生成但未执行 (mode={execution_mode})')
+        print(f'  [GUARDRAIL] 共 {len(orders)} 笔订单，详情见上方 pre-trade summary')
 
     # 保存风控状态
     risk_mgr.save_state()
@@ -470,6 +528,215 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False):
     duration = (datetime.now() - ts_start).total_seconds()
     print(f'\n  耗时: {duration:.1f}s')
     print(f'{"="*65}')
+
+
+# === Live Guardrails (Phase B) ===========================================
+
+def _is_live_confirmed(args) -> bool:
+    """
+    判断是否获得了 live 确认。
+    - --live 是必要条件（无 --live 则无需确认）
+    - --confirm-live CLI flag 或 QUANT_LIVE_CONFIRM=YES 均可
+    - 同时设置时以 --confirm-live 为准
+    """
+    if not args.live:
+        return False
+    if args.confirm_live:
+        return True
+    if os.environ.get('QUANT_LIVE_CONFIRM', '').upper() == 'YES':
+        return True
+    return False
+
+
+def _build_pre_trade_summary(market, requested_live, confirmed_live,
+                              account, positions, orders,
+                              total_assets, cash_before,
+                              exposure_before) -> dict:
+    """构建 pre-trade summary（符合设计文档 JSON 结构）。
+
+    cash_before / exposure_before 是订单生成前的原始账户快照值，
+    summary 内通过 gross_buy/gross_sell 推导 cash_after_orders / exposure_after，
+    不会重复扣减建仓循环中已修改的 available_cash / current_exposure。
+    """
+    buy_orders = [o for o in orders if o['action'] == 'BUY']
+    sell_orders = [o for o in orders if o['action'] == 'SELL']
+    gross_buy = sum(o['qty'] * o['price'] for o in buy_orders)
+    gross_sell = sum(o['qty'] * o['price'] for o in sell_orders)
+
+    largest = None
+    if orders:
+        largest = max(orders, key=lambda o: o['qty'] * o['price'])
+
+    cash_after_orders = cash_before + gross_sell - gross_buy
+    exposure_after = exposure_before + gross_buy - gross_sell
+
+    per_order = []
+    for o in orders:
+        per_order.append({
+            'symbol': o['symbol'],
+            'action': o['action'],
+            'qty': o['qty'],
+            'price': o['price'],
+            'notional': round(o['qty'] * o['price'], 2),
+            'reason': o.get('reason', ''),
+        })
+
+    summary = {
+        'timestamp': datetime.now().isoformat(),
+        'market': market,
+        'requested_live': requested_live,
+        'confirmed_live': confirmed_live,
+        'execution_mode': '',
+        'account': {
+            'total_assets': total_assets,
+            'cash_before': cash_before,
+            'cash_after_orders': cash_after_orders,
+            'market_val': account.get('market_val', 0) if account else 0,
+            'exposure_before_pct': round(exposure_before / total_assets * 100, 1) if total_assets > 0 else 0,
+            'exposure_after_pct': round(exposure_after / total_assets * 100, 1) if total_assets > 0 else 0,
+        },
+        'orders_summary': {
+            'total': len(orders),
+            'buy_count': len(buy_orders),
+            'sell_count': len(sell_orders),
+            'gross_buy': gross_buy,
+            'gross_sell': gross_sell,
+            'net_cash_impact': gross_buy - gross_sell,
+            'largest_order': {
+                'symbol': largest['symbol'] if largest else '',
+                'action': largest['action'] if largest else '',
+                'qty': largest['qty'] if largest else 0,
+                'price': largest['price'] if largest else 0,
+                'notional': round(largest['qty'] * largest['price'], 2) if largest else None,
+            } if largest else None,
+        },
+        'per_order_details': per_order,
+        'risk_checks': {
+            'order_count': {
+                'pass': len(orders) > 0,
+                'detail': f'{len(orders)} orders' if orders else '0 orders (skip)',
+            },
+            'cash_after_orders': {
+                'pass': cash_after_orders >= 0,
+                'detail': f'{cash_after_orders:,.0f} >= 0' if cash_after_orders >= 0
+                          else f'{cash_after_orders:,.0f} < 0',
+            },
+            'largest_order_pct': {
+                'pass': (largest['qty'] * largest['price'] / total_assets <= config.MAX_POSITION_PCT
+                         if largest and total_assets > 0 else True),
+                'detail': (f'{largest["qty"] * largest["price"] / total_assets * 100:.1f}% <= {config.MAX_POSITION_PCT*100:.0f}%'
+                           if largest and total_assets > 0 else 'no orders'),
+            },
+            'exposure_after_orders': {
+                'pass': exposure_after / total_assets <= config.MAX_TOTAL_PCT if total_assets > 0 else True,
+                'detail': (f'{exposure_after / total_assets * 100:.1f}% <= {config.MAX_TOTAL_PCT*100:.0f}%'
+                           if total_assets > 0 else 'no assets'),
+            },
+        },
+    }
+    summary['execution_mode'] = ''
+    return summary
+
+
+def _print_pre_trade_summary(summary: dict):
+    """打印 pre-trade summary 到控制台（box 格式）。"""
+    mode = summary.get('execution_mode', 'DRY_RUN')
+    market = summary['market']
+    acct = summary['account']
+    os_ = summary['orders_summary']
+    risk = summary['risk_checks']
+
+    total_orders = os_['total']
+    if total_orders == 0:
+        return
+
+    print()
+    print('╔' + '═' * 61 + '╗')
+    print(f'║{"PRE-TRADE SUMMARY":^59}║')
+    print('╠' + '═' * 61 + '╣')
+    print(f'║ Mode:           {mode:<43}║')
+    print(f'║ Market:         {market:<43}║')
+    print(f'║ Timestamp:      {summary["timestamp"]:<31}║')
+    print('╠' + '═' * 61 + '╣')
+    print(f'║ Total Assets:   {acct["total_assets"]:>12,.0f} {"":29}║')
+    print(f'║ Cash Before:    {acct["cash_before"]:>12,.0f} {"":29}║')
+    print(f'║ Cash After:     {acct["cash_after_orders"]:>12,.0f} {"":29}║')
+    print(f'║ Market Value:   {acct["market_val"]:>12,.0f} {"":29}║')
+    print(f'║ Exposure Before:{acct["exposure_before_pct"]:>5.1f}% {"":24}║')
+    print(f'║ Exposure After: {acct["exposure_after_pct"]:>5.1f}% {"":24}║')
+    print('╠' + '═' * 61 + '╣')
+    print(f'║ Orders: {total_orders}  BUY: {os_["buy_count"]}  SELL: {os_["sell_count"]} {"":26}║')
+    print(f'║ Gross BUY:  {os_["gross_buy"]:>12,.0f} {"":23}║')
+    print(f'║ Gross SELL: {os_["gross_sell"]:>12,.0f} {"":23}║')
+    print(f'║ Net Impact: {os_["net_cash_impact"]:>+12,.0f} {"":23}║')
+    if os_['largest_order']:
+        lo = os_['largest_order']
+        print(f'║ Largest: {lo["symbol"]} {lo["action"]} {lo["qty"]} @ {lo["price"]:.2f} = {lo["notional"]:,.0f} {"":10}║')
+    print('╠' + '═' * 61 + '╣')
+    print(f'║ Per-Order Details{"":44}║')
+    for i, od in enumerate(summary.get('per_order_details', []), 1):
+        sym = od['symbol']
+        act = od['action']
+        qty = od['qty']
+        prv = od['price']
+        notional = od['notional']
+        reason = od.get('reason', '')[:28]
+        print(f'║ {i}. {sym:<10} {act:<4} {qty:>6} @ {prv:<8.2f} {notional:>10,.0f} {reason:<28} ║')
+    print('╠' + '═' * 61 + '╣')
+    orders_pass = risk.get('order_count', {}).get('pass', True)
+    cash_pass   = risk.get('cash_after_orders', {}).get('pass', True)
+    pos_pass    = risk.get('largest_order_pct', {}).get('pass', True)
+    exp_pass    = risk.get('exposure_after_orders', {}).get('pass', True)
+    print(f'║ Risk Checks{"":51}║')
+    print(f'║   {"Order Count":20} {"✅ PASS" if orders_pass else "❌ FAIL":<10} {risk["order_count"]["detail"]:<27}║')
+    print(f'║   {"Cash After Orders":20} {"✅ PASS" if cash_pass else "❌ FAIL":<10} {risk["cash_after_orders"]["detail"]:<27}║')
+    print(f'║   {"Largest Order %":20} {"✅ PASS" if pos_pass else "❌ FAIL":<10} {risk["largest_order_pct"]["detail"]:<27}║')
+    print(f'║   {"Exposure After":20} {"✅ PASS" if exp_pass else "❌ FAIL":<10} {risk["exposure_after_orders"]["detail"]:<27}║')
+    if summary.get('requested_live') and not summary.get('confirmed_live'):
+        print(f'║   {"Confirm Live":20} {"❌ FAIL":<10} {"--confirm-live missing":<27}║')
+    elif summary.get('requested_live') and summary.get('confirmed_live'):
+        print(f'║   {"Confirm Live":20} {"✅ PASS":<10} {"--confirm-live provided":<27}║')
+    print('╚' + '═' * 61 + '╝')
+
+
+def _save_guardrail_log(summary: dict, log_dir: Path):
+    """保存 guardrail log JSON。仅在有订单时写入。"""
+    if summary['orders_summary']['total'] == 0:
+        return
+    os.makedirs(log_dir, exist_ok=True)
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    market = summary['market']
+    log_path = log_dir / f'guardrails_{market}_{ts}.json'
+    with open(log_path, 'w', encoding='utf-8') as f:
+        json.dump(summary, f, ensure_ascii=False, indent=2)
+
+
+def _should_block_live(summary: dict) -> tuple:
+    """
+    检查是否应拦截 live 执行。
+    Returns:
+        (should_block, reasons)
+    """
+    reasons = []
+
+    if summary.get('requested_live') and not summary.get('confirmed_live'):
+        reasons.append('LIVE_CONFIRM_REQUIRED')
+
+    risk = summary.get('risk_checks', {})
+
+    cash_check = risk.get('cash_after_orders', {})
+    if not cash_check.get('pass', True):
+        reasons.append(cash_check.get('detail', 'INSUFFICIENT_CASH'))
+
+    pos_check = risk.get('largest_order_pct', {})
+    if not pos_check.get('pass', True):
+        reasons.append(pos_check.get('detail', 'POSITION_LIMIT_EXCEEDED'))
+
+    exp_check = risk.get('exposure_after_orders', {})
+    if not exp_check.get('pass', True):
+        reasons.append(exp_check.get('detail', 'EXPOSURE_LIMIT_EXCEEDED'))
+
+    return len(reasons) > 0, reasons
 
 
 # === 辅助函数 =====================================================
@@ -619,24 +886,39 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='QuantBot 统一交易运行器')
     parser.add_argument('--market', type=str, default=None, help='HK / US（默认自动判断）')
     parser.add_argument('--both', action='store_true', help='强制港股+美股双线运行')
-    parser.add_argument('--live', action='store_true', help='实际下单（默认 DRY-RUN）')
+    parser.add_argument('--live', action='store_true', help='请求实盘交易（默认 DRY-RUN）')
+    parser.add_argument('--confirm-live', action='store_true',
+                        help='确认实盘交易（必须与 --live 同时使用；或设置环境变量 QUANT_LIVE_CONFIRM=YES）')
     parser.add_argument('--signal-only', action='store_true', help='只生成信号，不交易')
     parser.add_argument('--no-stop', action='store_true', help='不执行止损检查')
     args = parser.parse_args()
 
-    dry_run = not args.live
+    requested_live = bool(args.live)
+    live_confirmed = _is_live_confirmed(args)
+    dry_run = not requested_live  # default --live 时 dry_run=False
     signal_only = args.signal_only
     no_stop = args.no_stop
 
+    # 警告：--confirm-live 无 --live
+    if args.confirm_live and not args.live:
+        print('[WARN] --confirm-live 需配合 --live 使用，当前仍为 dry-run')
+
+    # 警告：--live 无确认
+    if args.live and not live_confirmed:
+        print('[WARN] --live 但未提供 --confirm-live 或 QUANT_LIVE_CONFIRM=YES')
+        print('       订单将生成但不执行。使用 --confirm-live 确认执行。')
+
     if args.both:
-        # 双线运行：先港股后美股
         if is_hk_trading_day():
-            run('HK', dry_run=dry_run, signal_only=signal_only, no_stop=no_stop)
+            run('HK', dry_run=dry_run, signal_only=signal_only, no_stop=no_stop,
+                requested_live=requested_live, live_confirmed=live_confirmed)
         if is_us_trading_day():
-            run('US', dry_run=dry_run, signal_only=signal_only, no_stop=no_stop)
+            run('US', dry_run=dry_run, signal_only=signal_only, no_stop=no_stop,
+                requested_live=requested_live, live_confirmed=live_confirmed)
     else:
         market = args.market or get_market_to_run()
         if market == 'NONE':
             print('  今天非交易日，无需运行')
         else:
-            run(market, dry_run=dry_run, signal_only=signal_only, no_stop=no_stop)
+            run(market, dry_run=dry_run, signal_only=signal_only, no_stop=no_stop,
+                requested_live=requested_live, live_confirmed=live_confirmed)
