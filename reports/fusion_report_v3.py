@@ -258,8 +258,10 @@ def _build_full_matrix(signals, prev_signals):
 
     s = f"""## V. 全量信号矩阵 ({len(signals)} 标的)
 
-| # | 标的 | 现价 | RSI日 | RSI周 | 信号 | 融合分 | 置信度 | 三因子观点 | XMM分 | VP分 | LLM分 | 权重 | 仓位 | 变动 | 根因 |
-|---|------|------|-------|-------|------|--------|--------|------------|-------|------|-------|------|------|------|------|
+> conf_v² / Δconf 为 shadow 指标，仅用于观察置信度 v2，不参与 Gate、不影响仓位、不替换 live 置信度。
+
+| # | 标的 | 现价 | RSI日 | RSI周 | 信号 | 融合分 | 置信度 | conf_v² | Δconf | 三因子观点 | XMM分 | VP分 | LLM分 | 权重 | 仓位 | 变动 | 根因 |
+|---|------|------|-------|-------|------|--------|--------|---------|-------|------------|-------|------|-------|------|------|------|------|
 """
 
     sorted_signals = sorted(signals, key=lambda x: x.get('fusion_score', 0), reverse=True)
@@ -274,6 +276,7 @@ def _build_full_matrix(signals, prev_signals):
         level = sig.get('fusion_level', '?')
         score = sig.get('fusion_score', 0)
         conf = sig.get('fusion_confidence', 0)
+        conf_v2, delta_conf = _compute_conf_v2_shadow(sig)
         target_pos = sig.get('target_position', 0)
         weights = sig.get('weights_used', {})
         raw = sig.get('raw_scores', {})
@@ -308,7 +311,10 @@ def _build_full_matrix(signals, prev_signals):
         rsi_d_icon = _rsi_color(rsi_d)
         rsi_w_icon = _rsi_color(rsi_w)
 
-        s += f"| {i} | {display_name} | {close:.2f} | {rsi_d_icon}{rsi_d:.0f} | {rsi_w_icon}{rsi_w:.0f} | {icon}**{level}** | **{score:+.1f}** | {conf:.0%} | {factor_view} | {xmm_raw:+.0f} | {vp_raw:+.0f} | {llm_raw:+.0f} | {weight_str} | {target_pos:.0%} | {delta_str} | {root_cause} |\n"
+        conf_v2_str = f'{conf_v2:.0%}' if conf_v2 >= 0 else 'N/A'
+        delta_conf_str = f'{delta_conf:+.0%}' if conf_v2 >= 0 else ''
+
+        s += f"| {i} | {display_name} | {close:.2f} | {rsi_d_icon}{rsi_d:.0f} | {rsi_w_icon}{rsi_w:.0f} | {icon}**{level}** | **{score:+.1f}** | {conf:.0%} | {conf_v2_str} | {delta_conf_str} | {factor_view} | {xmm_raw:+.0f} | {vp_raw:+.0f} | {llm_raw:+.0f} | {weight_str} | {target_pos:.0%} | {delta_str} | {root_cause} |\n"
 
     s += "\n"
     return s
@@ -708,6 +714,82 @@ def _factor_view_summary(sig: dict) -> str:
         f"VP {_compact_view(sig, 'vp')}",
         f"LLM {_compact_view(sig, 'llm')}",
     ])
+
+
+# ═══════════════════════════════════════════════════════════════
+#  conf_v² — Shadow 置信度 (仅供展示，不参与 live 审批)
+#
+#  v2 输入与 FusionController._fuse_signals 同源：
+#    raw_scores.xmm/vp/llm, xmm_action, xmm_position_size,
+#    vp_direction, llm_sentiment
+#
+#  ⚠️ 这是 shadow 指标，不替换 fusion_confidence
+# ═══════════════════════════════════════════════════════════════
+_CONF_V2_BASE_WEIGHTS = {'XMM': 0.60, 'VP': 0.25, 'LLM': 0.15}
+
+
+def _compute_conf_v2_shadow(sig: dict) -> tuple:
+    """
+    计算 v2 置信度作为 shadow 展示列。
+
+    Returns:
+        (conf_v2, delta) — 均为 float，delta = conf_v2 - fusion_confidence
+        conf_v2 = -1 表示无法计算（信号数据不完整）
+    """
+    raw = sig.get('raw_scores', {})
+    xmm_factor = raw.get('xmm', 0.0)
+    vp_factor  = raw.get('vp', 0.0)
+    llm_factor = raw.get('llm', 0.0)
+    xmm_action = str(sig.get('xmm_action', 'HOLD')).upper()
+    xmm_pos    = sig.get('xmm_position_size', 0.0)
+    vp_dir     = str(sig.get('vp_direction', 'HOLD')).upper()
+    llm_sent   = sig.get('llm_sentiment', 0.0)
+
+    # 信号不完整无法计算
+    if raw.get('xmm') is None and raw.get('vp') is None:
+        return -1.0, 0.0
+
+    w = _CONF_V2_BASE_WEIGHTS
+
+    # 各源活跃性
+    xmm_active = xmm_action != 'HOLD'
+    vp_active  = vp_dir != 'HOLD' and abs(vp_factor) > 1
+    llm_active = abs(llm_factor) > 1
+
+    sources_active = {'XMM': xmm_active, 'VP': vp_active, 'LLM': llm_active}
+    total = sum(w[s] for s in w if sources_active.get(s, False))
+    if total <= 0:
+        return 0.0, -sig.get('fusion_confidence', 0.0)
+
+    wn = {s: (w[s] / total if sources_active.get(s, False) else 0.0) for s in w}
+
+    # 各源原始置信度 (同源 live _fuse_signals)
+    xmm_conf = min(max(xmm_pos, 0.1), 0.95) if xmm_active else 0.30
+    vp_conf  = min(abs(vp_factor) / 100.0, 0.80)
+    llm_conf = min(abs(llm_factor) / 100.0 + 0.15, 0.85)
+
+    confidence = xmm_conf * wn['XMM'] + vp_conf * wn['VP'] + llm_conf * wn['LLM']
+
+    # XMM 沉默惩罚
+    if abs(xmm_factor) < 1:
+        confidence = min(confidence, 0.55)
+
+    # VP-XMM 方向分歧惩罚
+    vp_dir_bin  = 1 if vp_dir == 'BUY' else (-1 if vp_dir == 'SELL' else 0)
+    xmm_dir_bin = 1 if xmm_action == 'BUY' else (-1 if xmm_action == 'SELL' else 0)
+    llm_dir_bin = 1 if llm_sent > 5 else (-1 if llm_sent < -5 else 0)
+
+    if vp_dir_bin != 0 and xmm_dir_bin != 0 and vp_dir_bin * xmm_dir_bin < 0:
+        confidence *= 0.85
+
+    # 三因子同向奖励
+    if vp_dir_bin != 0 and llm_dir_bin != 0 and xmm_dir_bin != 0:
+        if vp_dir_bin == llm_dir_bin == xmm_dir_bin:
+            confidence = min(confidence * 1.15, 0.95)
+
+    conf_v2 = round(min(max(confidence, 0.0), 0.95), 3)
+    old_conf = sig.get('fusion_confidence', 0.0)
+    return conf_v2, round(conf_v2 - old_conf, 3)
 
 
 def _compact_view(sig: dict, factor: str) -> str:

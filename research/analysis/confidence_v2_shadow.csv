@@ -1,0 +1,111 @@
+﻿date,market,symbol,level,score,old_conf,conf_v2,delta,gate_old,gate_v2,gate_change,xmm_active,vp_active,llm_active,dir_note,v2_reasons
+2026-05-27,US,AAPL.US,BUY,32.0,0.53,0.55,0.02,N/A,False,False,False,False,True,中性,置信度 0.55 < 0.65 (等级: BUY); 融合得分 32.0 < 40 (等级: BUY)
+2026-05-27,US,ADBE.US,HOLD,-5.8,0.38,0.2,-0.18,N/A,True,False,False,False,True,中性,
+2026-05-27,US,AMD.US,BUY,30.5,0.53,0.55,0.02,N/A,False,False,False,False,True,中性,置信度 0.55 < 0.65 (等级: BUY); 融合得分 30.5 < 40 (等级: BUY)
+2026-05-27,US,AMZN.US,REDUCED,21.5,0.492,0.25,-0.242,N/A,False,False,False,False,True,中性,置信度 0.25 < 0.60 (等级: REDUCED); 融合得分 21.5 < 30 (等级: REDUCED)
+2026-05-27,US,AVGO.US,REDUCED,21.5,0.492,0.25,-0.242,N/A,False,False,False,False,True,中性,置信度 0.25 < 0.60 (等级: REDUCED); 融合得分 21.5 < 30 (等级: REDUCED)
+2026-05-27,US,CRM.US,HOLD,-3.5,0.38,0.25,-0.13,N/A,True,False,False,False,True,中性,
+2026-05-27,US,GOOGL.US,REDUCED,21.5,0.485,0.25,-0.235,N/A,False,False,False,False,True,中性,置信度 0.25 < 0.60 (等级: REDUCED); 融合得分 21.5 < 30 (等级: REDUCED)
+2026-05-27,US,INTC.US,REDUCED,23.0,0.485,0.35,-0.135,N/A,False,False,False,False,True,中性,置信度 0.35 < 0.60 (等级: REDUCED); 融合得分 23.0 < 30 (等级: REDUCED)
+2026-05-27,US,META.US,HOLD,2.5,0.38,0.55,0.17,N/A,True,False,False,False,True,中性,
+2026-05-27,US,MSFT.US,HOLD,6.5,0.342,0.25,-0.092,N/A,True,False,False,False,True,中性,
+2026-05-27,US,NFLX.US,HOLD,-3.5,0.32,0.25,-0.07,N/A,True,False,False,False,True,中性,
+2026-05-27,US,NVDA.US,REDUCED,19.2,0.485,0.2,-0.285,N/A,False,False,False,False,True,中性,置信度 0.20 < 0.60 (等级: REDUCED); 融合得分 19.2 < 30 (等级: REDUCED)
+2026-05-27,US,ORCL.US,REDUCED,24.5,0.53,0.45,-0.08,N/A,False,False,False,False,True,中性,置信度 0.45 < 0.60 (等级: REDUCED); 融合得分 24.5 < 30 (等级: REDUCED)
+2026-05-27,US,QCOM.US,BUY,30.5,0.492,0.55,0.058,N/A,False,False,False,False,True,中性,置信度 0.55 < 0.65 (等级: BUY); 融合得分 30.5 < 40 (等级: BUY)
+2026-05-27,US,TSLA.US,HOLD,-3.5,0.342,0.25,-0.092,N/A,True,False,False,False,True,中性,
+2026-05-28,HK,00388.HK,REDUCED,-17.0,0.342,0.444,0.102,False,False,False,False,True,True,"XMM沉默, VP=SELL",置信度 0.44 < 0.60 (等级: REDUCED); 融合得分 -17.0 < 30 (等级: REDUCED)
+2026-05-28,HK,00700.HK,SELL,-32.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=SELL",置信度 0.55 < 0.65 (等级: SELL); 融合得分 -32.0 < 40 (等级: SELL)
+2026-05-28,HK,01024.HK,HOLD,-7.0,0.342,0.444,0.102,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-05-28,HK,03690.HK,SELL,-32.0,0.508,0.55,0.042,False,False,False,False,True,True,"XMM沉默, VP=SELL",置信度 0.55 < 0.65 (等级: SELL); 融合得分 -32.0 < 40 (等级: SELL)
+2026-05-28,HK,06055.HK,SELL,-32.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=SELL",置信度 0.55 < 0.65 (等级: SELL); 融合得分 -32.0 < 40 (等级: SELL)
+2026-05-28,HK,09618.HK,HOLD,-8.5,0.342,0.444,0.102,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-05-28,HK,09988.HK,REDUCED,-17.0,0.342,0.444,0.102,False,False,False,False,True,True,"XMM沉默, VP=SELL",置信度 0.44 < 0.60 (等级: REDUCED); 融合得分 -17.0 < 30 (等级: REDUCED)
+2026-05-28,US,AAPL.US,BUY,32.0,0.508,0.55,0.042,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.65 (等级: BUY); 融合得分 32.0 < 40 (等级: BUY)
+2026-05-28,US,ADBE.US,HOLD,-5.8,0.38,0.2,-0.18,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-05-28,US,AMD.US,REDUCED,21.5,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 21.5 < 30 (等级: REDUCED)
+2026-05-28,US,AMZN.US,REDUCED,20.8,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 20.8 < 30 (等级: REDUCED)
+2026-05-28,US,AVGO.US,REDUCED,20.8,0.485,0.55,0.065,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 20.8 < 30 (等级: REDUCED)
+2026-05-28,US,CRM.US,HOLD,2.5,0.335,0.369,0.034,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-05-28,US,GOOGL.US,HOLD,8.0,0.53,0.55,0.02,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-05-28,US,INTC.US,REDUCED,20.8,0.47,0.55,0.08,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 20.8 < 30 (等级: REDUCED)
+2026-05-28,US,META.US,HOLD,2.5,0.342,0.369,0.027,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-05-28,US,MSFT.US,HOLD,3.5,0.342,0.219,-0.123,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-05-28,US,NFLX.US,HOLD,-5.8,0.335,0.2,-0.135,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-05-28,US,NVDA.US,REDUCED,11.0,0.485,0.55,0.065,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 11.0 < 30 (等级: REDUCED)
+2026-05-28,US,ORCL.US,HOLD,5.8,0.342,0.2,-0.142,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-05-28,US,QCOM.US,REDUCED,21.5,0.47,0.55,0.08,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 21.5 < 30 (等级: REDUCED)
+2026-05-28,US,TSLA.US,HOLD,8.0,0.32,0.256,-0.064,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-05-29,HK,00388.HK,HOLD,-2.8,0.38,0.237,-0.143,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-05-29,HK,00700.HK,REDUCED,-17.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=SELL",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 -17.0 < 30 (等级: REDUCED)
+2026-05-29,HK,01024.HK,HOLD,8.0,0.38,0.256,-0.124,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-05-29,HK,03690.HK,BUY,56.9,0.29,0.157,-0.133,False,False,False,True,True,True,分歧,置信度 0.16 < 0.65 (等级: BUY)
+2026-05-29,HK,06055.HK,REDUCED,-16.2,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=SELL",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 -16.2 < 30 (等级: REDUCED)
+2026-05-29,HK,09618.HK,HOLD,7.2,0.305,0.237,-0.068,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-05-29,HK,09988.HK,HOLD,-2.8,0.38,0.237,-0.143,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-05-29,US,AAPL.US,BUY,30.5,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.65 (等级: BUY); 融合得分 30.5 < 40 (等级: BUY)
+2026-05-29,US,ADBE.US,HOLD,-2.8,0.38,0.237,-0.143,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-05-29,US,AMD.US,REDUCED,28.2,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 28.2 < 30 (等级: REDUCED)
+2026-05-29,US,AMZN.US,REDUCED,23.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 23.0 < 30 (等级: REDUCED)
+2026-05-29,US,AVGO.US,REDUCED,29.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 29.0 < 30 (等级: REDUCED)
+2026-05-29,US,CRM.US,HOLD,-2.0,0.38,0.256,-0.124,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-05-29,US,GOOGL.US,REDUCED,23.8,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 23.8 < 30 (等级: REDUCED)
+2026-05-29,US,INTC.US,REDUCED,26.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 26.0 < 30 (等级: REDUCED)
+2026-05-29,US,META.US,HOLD,3.2,0.38,0.388,0.008,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-05-29,US,MSFT.US,HOLD,8.0,0.38,0.256,-0.124,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-05-29,US,NFLX.US,HOLD,-2.0,0.38,0.256,-0.124,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-05-29,US,NVDA.US,REDUCED,22.2,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 22.2 < 30 (等级: REDUCED)
+2026-05-29,US,ORCL.US,REDUCED,29.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 29.0 < 30 (等级: REDUCED)
+2026-05-29,US,QCOM.US,BUY,30.5,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.65 (等级: BUY); 融合得分 30.5 < 40 (等级: BUY)
+2026-05-29,US,TSLA.US,REDUCED,14.0,0.38,0.406,0.026,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.41 < 0.60 (等级: REDUCED); 融合得分 14.0 < 30 (等级: REDUCED)
+2026-06-01,HK,00700.HK,REDUCED,-21.5,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=SELL",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 -21.5 < 30 (等级: REDUCED)
+2026-06-01,HK,00981.HK,HOLD,6.5,0.38,0.219,-0.161,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-06-01,HK,01024.HK,HOLD,6.5,0.38,0.219,-0.161,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-06-01,HK,01810.HK,BUY,42.7,0.44,0.291,-0.149,False,False,False,True,True,True,分歧,置信度 0.29 < 0.65 (等级: BUY)
+2026-06-01,HK,02513.HK,HOLD,3.0,0.33,0.35,0.02,True,True,False,False,False,True,中性,
+2026-06-01,HK,03690.HK,HOLD,-3.5,0.38,0.219,-0.161,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-06-01,HK,09988.HK,HOLD,-3.5,0.38,0.219,-0.161,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-06-01,US,AAPL.US,REDUCED,23.0,0.455,0.55,0.095,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 23.0 < 30 (等级: REDUCED)
+2026-06-01,US,ADBE.US,HOLD,8.0,0.38,0.256,-0.124,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-06-01,US,AMD.US,SELL,-37.0,0.5,0.342,-0.158,False,False,False,True,True,True,分歧,置信度 0.34 < 0.65 (等级: SELL); 融合得分 -37.0 < 40 (等级: SELL)
+2026-06-01,US,AMZN.US,REDUCED,21.5,0.455,0.55,0.095,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 21.5 < 30 (等级: REDUCED)
+2026-06-01,US,AVGO.US,REDUCED,23.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 23.0 < 30 (等级: REDUCED)
+2026-06-01,US,CRM.US,REDUCED,23.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 23.0 < 30 (等级: REDUCED)
+2026-06-01,US,GOOGL.US,REDUCED,18.5,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 18.5 < 30 (等级: REDUCED)
+2026-06-01,US,INTC.US,REDUCED,18.5,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 18.5 < 30 (等级: REDUCED)
+2026-06-01,US,META.US,HOLD,-2.0,0.305,0.256,-0.049,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-06-01,US,MSFT.US,REDUCED,23.0,0.455,0.55,0.095,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 23.0 < 30 (等级: REDUCED)
+2026-06-01,US,NFLX.US,HOLD,-8.0,0.38,0.256,-0.124,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-06-01,US,NVDA.US,REDUCED,18.5,0.455,0.55,0.095,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 18.5 < 30 (等级: REDUCED)
+2026-06-01,US,ORCL.US,REDUCED,23.8,0.455,0.55,0.095,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 23.8 < 30 (等级: REDUCED)
+2026-06-01,US,QCOM.US,REDUCED,23.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 23.0 < 30 (等级: REDUCED)
+2026-06-01,US,TSLA.US,HOLD,6.5,0.38,0.219,-0.161,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-06-02,HK,00700.HK,REDUCED,-17.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=SELL",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 -17.0 < 30 (等级: REDUCED)
+2026-06-02,HK,00981.HK,REDUCED,21.5,0.455,0.55,0.095,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 21.5 < 30 (等级: REDUCED)
+2026-06-02,HK,01024.HK,HOLD,8.0,0.38,0.256,-0.124,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-06-02,HK,01810.HK,REDUCED,-18.5,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=SELL",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 -18.5 < 30 (等级: REDUCED)
+2026-06-02,HK,02513.HK,HOLD,1.5,0.33,0.25,-0.08,True,True,False,False,False,True,中性,
+2026-06-02,HK,03690.HK,HOLD,8.0,0.38,0.256,-0.124,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-06-02,HK,09988.HK,HOLD,-6.5,0.38,0.219,-0.161,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-06-02,US,AAPL.US,REDUCED,23.0,0.455,0.55,0.095,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 23.0 < 30 (等级: REDUCED)
+2026-06-02,US,ADBE.US,HOLD,8.0,0.305,0.256,-0.049,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-06-02,US,AMD.US,SELL,-37.0,0.5,0.342,-0.158,False,False,False,True,True,True,分歧,置信度 0.34 < 0.65 (等级: SELL); 融合得分 -37.0 < 40 (等级: SELL)
+2026-06-02,US,AMZN.US,REDUCED,18.5,0.455,0.55,0.095,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 18.5 < 30 (等级: REDUCED)
+2026-06-02,US,AVGO.US,REDUCED,23.8,0.455,0.55,0.095,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 23.8 < 30 (等级: REDUCED)
+2026-06-02,US,CRM.US,HOLD,8.0,0.38,0.256,-0.124,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-06-02,US,GOOGL.US,REDUCED,18.5,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 18.5 < 30 (等级: REDUCED)
+2026-06-02,US,INTC.US,REDUCED,17.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 17.0 < 30 (等级: REDUCED)
+2026-06-02,US,META.US,REDUCED,-18.5,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=SELL",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 -18.5 < 30 (等级: REDUCED)
+2026-06-02,US,MSFT.US,HOLD,8.0,0.305,0.256,-0.049,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-06-02,US,NFLX.US,REDUCED,-23.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=SELL",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 -23.0 < 30 (等级: REDUCED)
+2026-06-02,US,NVDA.US,REDUCED,23.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 23.0 < 30 (等级: REDUCED)
+2026-06-02,US,ORCL.US,REDUCED,23.8,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 23.8 < 30 (等级: REDUCED)
+2026-06-02,US,QCOM.US,REDUCED,18.5,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 18.5 < 30 (等级: REDUCED)
+2026-06-02,US,TSLA.US,HOLD,3.5,0.38,0.219,-0.161,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-06-03,HK,00700.HK,REDUCED,-18.5,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=SELL",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 -18.5 < 30 (等级: REDUCED)
+2026-06-03,HK,00981.HK,REDUCED,23.0,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=BUY",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 23.0 < 30 (等级: REDUCED)
+2026-06-03,HK,01024.HK,HOLD,6.5,0.305,0.219,-0.086,True,True,False,False,True,True,"XMM沉默, VP=BUY",
+2026-06-03,HK,01810.HK,REDUCED,-18.5,0.53,0.55,0.02,False,False,False,False,True,True,"XMM沉默, VP=SELL",置信度 0.55 < 0.60 (等级: REDUCED); 融合得分 -18.5 < 30 (等级: REDUCED)
+2026-06-03,HK,02513.HK,HOLD,3.0,0.33,0.35,0.02,True,True,False,False,False,True,中性,
+2026-06-03,HK,03690.HK,HOLD,-6.5,0.38,0.219,-0.161,True,True,False,False,True,True,"XMM沉默, VP=SELL",
+2026-06-03,HK,09988.HK,HOLD,-6.5,0.38,0.219,-0.161,True,True,False,False,True,True,"XMM沉默, VP=SELL",
