@@ -97,37 +97,37 @@ def _is_live_confirmed(args) -> bool:
 ╔═══════════════════════════════════════════════════════════════╗
 ║                    PRE-TRADE SUMMARY                         ║
 ╠═══════════════════════════════════════════════════════════════╣
-║ Mode:           LIVE_BLOCKED_BY_CONFIRM                          ║
+║ Mode:           LIVE_BLOCKED_BY_CONFIRM                      ║
 ║ Market:         HK                                           ║
-║ Timestamp:      2026-06-03 16:26:54                          ║
+║ Timestamp:      2026-06-03T20:53:33                          ║
 ╠═══════════════════════════════════════════════════════════════╣
 ║ Account Snapshot                                             ║
 ║   Total Assets:     1,506,681                                ║
 ║   Cash Before:      1,460,041                                ║
-║   Cash After:       1,140,041                                ║
+║   Cash After:       1,399,441                                ║
 ║   Market Value:        46,640                                ║
 ║   Exposure Before:     3.1%                                 ║
-║   Exposure After:      6.2%                                 ║
+║   Exposure After:      7.1%                                 ║
 ╠═══════════════════════════════════════════════════════════════╣
 ║ Orders Summary                                               ║
 ║   Total Orders:   3                                          ║
-║   BUY:            1   GROSS:       320,000                   ║
-║   SELL:           2   GROSS:       130,500                   ║
-║   Net Cash Impact:  -189,500                                 ║
-║   Largest Order:   00700.HK BUY 100股 @ 466.40 = 46,640     ║
+║   BUY:            2   GROSS:        79,600                   ║
+║   SELL:           1   GROSS:        19,000                   ║
+║   Net Cash Impact:   +60,600                                 ║
+║   Largest Order:   00700.HK BUY 100股 @ 520.00 = 52,000     ║
 ╠═══════════════════════════════════════════════════════════════╣
 ║ Per-Order Details                                            ║
 ║ # │ Symbol      │ Action │  Qty │  Price  │  Notional │ Reason            ║
-║ 1 │ 00700.HK    │ BUY    │  100 │ 466.40  │   46,640  │ STRONG_BUY s=+63  ║
-║ 2 │ 00981.HK    │ SELL   │  500 │  26.00  │   13,000  │ STOP: trailing -12%║
-║ 3 │ 01810.HK    │ SELL   │ 2000 │  58.75  │  117,500  │ SIGNAL_REVERSAL    ║
+║ 1 │ 00700.HK    │ BUY    │  100 │ 520.00  │   52,000  │ xmm_bottom        ║
+║ 2 │ 09988.HK    │ BUY    │  200 │ 138.00  │   27,600  │ vp_breakout       ║
+║ 3 │ 00388.HK    │ SELL   │   50 │ 380.00  │   19,000  │ stop_loss         ║
 ╠═══════════════════════════════════════════════════════════════╣
 ║ Risk Warnings (hardF拦截检查)                                 ║
 ║ ✅ Order Count > 0          PASS  (3 orders)                 ║
-║ ✅ Cash After Buys          PASS  (1,140,041 ≥ 0)            ║
-║ ✅ Largest Order %          PASS  (3.1% ≤ 20.0%)             ║
-║ ✅ Exposure After Orders    PASS  (6.2% ≤ 80.0%)             ║
-║ ❌ ⚠️  LIVE_CONFIRM_REQUIRED: --confirm-live missing         ║
+║ ✅ Cash After Orders        PASS  (1,399,441 >= 0)           ║
+║ ✅ Largest Order %          PASS  (3.5% <= 20.0%)            ║
+║ ✅ Exposure After Orders    PASS  (7.1% <= 80.0%)            ║
+║ ❌ LIVE_CONFIRM_REQUIRED: --confirm-live missing             ║
 ╚═══════════════════════════════════════════════════════════════╝
 ```
 
@@ -143,36 +143,38 @@ def _is_live_confirmed(args) -> bool:
   "account": {
     "total_assets": 1506681,
     "cash_before": 1460041,
-    "cash_after_orders": 1140041,
+    "cash_after_orders": 1399441,
     "market_val": 46640,
     "exposure_before_pct": 3.1,
-    "exposure_after_pct": 6.2
+    "exposure_after_pct": 7.1,
+    "exposure_before_value": 46640,
+    "exposure_after_value": 107240
   },
   "orders_summary": {
     "total": 3,
-    "buy_count": 1,
-    "sell_count": 2,
-    "gross_buy": 320000,
-    "gross_sell": 130500,
-    "net_cash_impact": -189500,
+    "buy_count": 2,
+    "sell_count": 1,
+    "gross_buy": 79600,
+    "gross_sell": 19000,
+    "net_cash_impact": 60600,
     "largest_order": {
       "symbol": "00700.HK",
       "action": "BUY",
       "qty": 100,
-      "price": 466.40,
-      "notional": 46640
+      "price": 520.00,
+      "notional": 52000
     }
   },
   "per_order_details": [
-    { "symbol": "00700.HK", "action": "BUY",  "qty": 100, "price": 466.40, "notional": 46640, "reason": "STRONG_BUY s=+63" },
-    { "symbol": "00981.HK", "action": "SELL", "qty": 500, "price": 26.00,  "notional": 13000, "reason": "STOP: trailing -12%" },
-    { "symbol": "01810.HK", "action": "SELL", "qty": 2000,"price": 58.75,  "notional": 117500,"reason": "SIGNAL_REVERSAL" }
+    { "symbol": "00700.HK", "action": "BUY",  "qty": 100, "price": 520.00, "notional": 52000, "reason": "xmm_bottom" },
+    { "symbol": "09988.HK", "action": "BUY",  "qty": 200, "price": 138.00, "notional": 27600, "reason": "vp_breakout" },
+    { "symbol": "00388.HK", "action": "SELL", "qty": 50,  "price": 380.00, "notional": 19000, "reason": "stop_loss" }
   ],
   "risk_checks": {
     "order_count": { "pass": true,  "detail": "3 orders" },
-    "cash_after_orders": { "pass": true,  "detail": "1,140,041 ≥ 0" },
-    "largest_order_pct": { "pass": true,  "detail": "3.1% ≤ 20.0%" },
-    "exposure_after_orders": { "pass": true,  "detail": "6.2% ≤ 80.0%" },
+    "cash_after_orders": { "pass": true,  "detail": "1,399,441 >= 0" },
+    "largest_order_pct": { "pass": true,  "detail": "3.5% <= 20.0%" },
+    "exposure_after_orders": { "pass": true,  "detail": "7.1% <= 80.0%" },
     "confirm_live": { "pass": false, "detail": "--confirm-live missing" }
   },
   "block_reason": "LIVE_CONFIRM_REQUIRED: --confirm-live not provided"
@@ -268,27 +270,35 @@ output/live_guardrails_{market}_{YYYYMMDD}_{HHMMSS}.json
   "account_snapshot": {
     "total_assets": 1506681,
     "cash_before": 1460041,
-    "cash_after_orders": 1140041,
+    "cash_after_orders": 1399441,
     "market_val": 46640,
     "exposure_before_pct": 3.1,
-    "exposure_after_pct": 6.2
+    "exposure_after_pct": 7.1,
+    "exposure_before_value": 46640,
+    "exposure_after_value": 107240
   },
   "orders_summary": {
     "total": 3,
-    "buy_count": 1,
-    "sell_count": 2,
-    "gross_buy": 320000,
-    "gross_sell": 130500,
-    "net_cash_impact": -189500
+    "buy_count": 2,
+    "sell_count": 1,
+    "gross_buy": 79600,
+    "gross_sell": 19000,
+    "net_cash_impact": 60600
   },
   "per_order_details": [
-    ...
+    { "symbol": "00700.HK", "action": "BUY",  "qty": 100, "price": 520.00, "notional": 52000, "reason": "xmm_bottom" },
+    { "symbol": "09988.HK", "action": "BUY",  "qty": 200, "price": 138.00, "notional": 27600, "reason": "vp_breakout" },
+    { "symbol": "00388.HK", "action": "SELL", "qty": 50,  "price": 380.00, "notional": 19000, "reason": "stop_loss" }
   ],
   "risk_checks": {
-    ...
+    "order_count":      { "pass": true,  "detail": "3 orders" },
+    "cash_after_orders": { "pass": true,  "detail": "1,399,441 >= 0" },
+    "largest_order_pct": { "pass": true,  "detail": "3.5% <= 20.0%" },
+    "exposure_after_orders": { "pass": true,  "detail": "7.1% <= 80.0%" }
   },
   "positions_held": [
-    { "symbol": "00700.HK", "qty": 100, "cost": 458.40, "cur": 466.40, "pnl_pct": 1.7 }
+    { "symbol": "00700.HK", "qty": 200, "cost": 456.00, "cur": 520.00, "pnl_pct": 14.0 },
+    { "symbol": "00388.HK", "qty": 100, "cost": 152.00, "cur": 166.40, "pnl_pct": 9.5 }
   ]
 }
 ```

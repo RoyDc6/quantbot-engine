@@ -72,6 +72,8 @@ def _build_pre_trade_summary(market, requested_live, confirmed_live,
             'market_val': account.get('market_val', 0) if account else 0,
             'exposure_before_pct': round(exposure_before / total_assets * 100, 1) if total_assets > 0 else 0,
             'exposure_after_pct': round(exposure_after / total_assets * 100, 1) if total_assets > 0 else 0,
+            'exposure_before_value': exposure_before,
+            'exposure_after_value': exposure_after,
         },
         'orders_summary': {
             'total': len(orders),
