@@ -70,11 +70,19 @@ PYTHON = sys.executable
 
 def _run_script(script_path: str, cwd: str = "C:/") -> subprocess.CompletedProcess:
     """Run a Python script from a non-project cwd and return the result."""
+    return _subprocess_run([PYTHON, script_path, "--help"], cwd=cwd)
+
+
+def _subprocess_run(args: list, cwd: str = "C:/", inp: str | None = None) -> subprocess.CompletedProcess:
+    """Wrapper around subprocess.run with UTF-8 safe encoding for Windows."""
     return subprocess.run(
-        [PYTHON, script_path, "--help"],
+        args,
         cwd=cwd,
+        input=inp,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=30,
     )
 
@@ -139,13 +147,7 @@ def test_hk_tech_scan_import_mechanism():
         "print(f'PROJECT_ROOT={PROJECT_ROOT}')\n"
         "print(f'CACHE_DIR={SCANNER2_CACHE}')\n"
     )
-    result = subprocess.run(
-        [PYTHON, "-c", code],
-        cwd="C:/",
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
+    result = _subprocess_run([PYTHON, "-c", code])
     assert result.returncode == 0, (
         f"hk_tech_scan import chain failed (rc={result.returncode})\n"
         f"stdout: {result.stdout.strip()}\nstderr: {result.stderr.strip()}"
@@ -162,13 +164,7 @@ def test_hk_tech_scan_module_import_no_core_error():
         "import scanner2.hk_tech_scan as m\n"
         "print(f'CACHE_DIR={m.CACHE_DIR}')\n"
     )
-    result = subprocess.run(
-        [PYTHON, "-c", code],
-        cwd="C:/",
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
+    result = _subprocess_run([PYTHON, "-c", code])
     # Module-level side effects (futu/tickflow imports) may fail,
     # but must NOT fail due to ModuleNotFoundError on core.*
     if result.returncode != 0:
