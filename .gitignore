@@ -46,12 +46,18 @@ paper_trading/reports/*.md
 # Runtime state (regenerated on each run)
 hk_trader/state/
 us_trader/state/
+futu_trader/state/
 
 # LLM event cache (transient, regenerated daily)
 market_state/event_cache/
 
 # Paper trading signal output (generated)
 paper_trading/signals/
+
+# Scanner caches (regenerated market data)
+scanner/cache/
+scanner2/cache/
+scanner2/cache_us/
 
 # Backup archives (separate repos: skills-backup / quantbot-backup)
 backups/
