@@ -45,7 +45,8 @@ jobs:
         shell: pwsh
 
       - name: pytest — smoke tests (no external service)
-        run: python -m pytest tests/smoke/ -q
+        run: python -m pytest tests/smoke/ -vv --durations=10
+        timeout-minutes: 10
 
       - name: git diff/show --check (trailing whitespace on new changes)
         run: |

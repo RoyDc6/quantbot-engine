@@ -52,8 +52,10 @@ def test_all_paths_derive_from_project_root():
 
 
 def test_project_root_resolves_to_expected():
-    assert str(PROJECT_ROOT).endswith("quant")
-    assert PROJECT_ROOT.is_dir()
+    expected = Path(__file__).resolve().parents[2]
+    assert PROJECT_ROOT == expected
+    assert (PROJECT_ROOT / "core" / "paths.py").is_file()
+    assert (PROJECT_ROOT / "unified_runner.py").is_file()
 
 
 def test_path_constants_are_path_objects():

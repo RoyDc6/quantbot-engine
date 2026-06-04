@@ -62,7 +62,7 @@ us_trader/us_pipeline.py
 | Setup Python | `actions/setup-python@v5`, 3.12 | 隔离环境 |
 | 安装依赖 | `python -m pip install pytest futu-api pandas numpy` | 最小依赖集；不升级 pip，不隐藏 stderr |
 | compileall | `python -m compileall -q unified_runner.py reports/fusion_report_v3.py core` | 语法检查，exit code 严格反映所有文件 |
-| pytest | `tests/smoke/ -q` | 全部 smoke tests |
+| pytest | `python -m pytest tests/smoke/ -vv --durations=10`，超时 10 分钟 | 全部 smoke tests，详细输出 + 慢测试排序 |
 | git show --check / git diff --check | push: `github.event.before...github.sha` ; push (第一次): `git show --check --format= HEAD` ; PR: `base.sha...HEAD` | 尾随空格检测 |
 | Summary | 打印失败提示 | 帮助定位 |
 
@@ -110,6 +110,14 @@ us_trader/us_pipeline.py
 - 负向测试（`TestFileScanHelper` + `TestNegativeDetection`）在纯字符串层面验证检测逻辑，不修改生产文件
 - 定时任务 bat 文件作为文本扫描，不执行批处理命令
 - 文件读取失败的场景直接抛 `RuntimeError`（不静默 `continue`），确保 CI 能捕获 IO 问题
+
+### 历史错误：`test_project_root_resolves_to_expected` 目录名依赖
+
+> 🐛 已修复（2026-06-04 第二轮修正）。
+
+原测试 `assert str(PROJECT_ROOT).endswith("quant")` 要求项目目录名以 `quant` 结尾。
+GitHub Actions 检出目录为 `quantbot-engine`，导致首次 CI 必然失败。
+修复为结构验证：`assert (PROJECT_ROOT / "core" / "paths.py").is_file()` 等，完全不依赖目录名称。
 
 ### 关于 `E:\.github\workflows\smoke.yml` 遗留文件
 
