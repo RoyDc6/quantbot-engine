@@ -62,7 +62,7 @@ us_trader/us_pipeline.py
 | Setup Python | `actions/setup-python@v5`, 3.12 | 隔离环境 |
 | 安装依赖 | `python -m pip install pytest futu-api pandas numpy` | 最小依赖集；不升级 pip，不隐藏 stderr |
 | compileall | `python -m compileall -q unified_runner.py reports/fusion_report_v3.py core` | 语法检查，exit code 严格反映所有文件 |
-| pytest | `python -m pytest tests/smoke/ -vv --durations=10`，超时 10 分钟 | 全部 smoke tests，详细输出 + 慢测试排序 |
+| pytest | `python -m pytest tests/smoke/ -vv --durations=10`，超时 20 分钟 | 全部 smoke tests，详细输出 + 慢测试排序 |
 | git show --check / git diff --check | push: `github.event.before...github.sha` ; push (第一次): `git show --check --format= HEAD` ; PR: `base.sha...HEAD` | 尾随空格检测 |
 | Summary | 打印失败提示 | 帮助定位 |
 
