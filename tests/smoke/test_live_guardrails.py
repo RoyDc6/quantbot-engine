@@ -121,12 +121,18 @@ class TestExecutionPath:
                     fc_inst = MockFC.return_value
                     fc_inst.analyze_ticker.return_value = _make_buy_signal('00700.HK')
 
-                    run(market=market, dry_run=dry_run, signal_only=False,
-                        no_stop=False,
-                        requested_live=requested_live,
-                        live_confirmed=live_confirmed,
-                        )
-                    return mock_exec, MockOE
+                    # Patch MarketStateClassifier 的数据加载（CI 无 OpenD / TickFlow）
+                    with patch('market_state.classifier.load_price_data') as MockLoadPrice:
+                        MockLoadPrice.return_value = None
+                        with patch('market_state.classifier.load_vix_data') as MockLoadVix:
+                            MockLoadVix.return_value = None
+
+                            run(market=market, dry_run=dry_run, signal_only=False,
+                                no_stop=False,
+                                requested_live=requested_live,
+                                live_confirmed=live_confirmed,
+                                )
+                            return mock_exec, MockOE
 
     def test_dry_run_calls_executor(self):
         """普通 dry-run（无 --live）应调用 execute_orders。"""

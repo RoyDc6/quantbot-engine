@@ -62,7 +62,7 @@ us_trader/us_pipeline.py
 | Setup Python | `actions/setup-python@v5`, 3.12 | 隔离环境 |
 | 安装依赖 | `python -m pip install pytest futu-api pandas numpy` | 最小依赖集；不升级 pip，不隐藏 stderr |
 | compileall | `python -m compileall -q unified_runner.py reports/fusion_report_v3.py core` | 语法检查，exit code 严格反映所有文件 |
-| pytest | `python -m pytest tests/smoke/ -vv --durations=10`，超时 20 分钟 | 全部 smoke tests，详细输出 + 慢测试排序 |
+| pytest | `python -m pytest tests/smoke/ -vv --durations=10`，超时 20 分钟 | 全部 smoke tests，详细输出 + 慢测试排序。注意：`TestExecutionPath` mock 已覆盖 `market_state.classifier` 数据加载，避免 CI 无 OpenD/TickFlow 时挂起 |
 | git show --check / git diff --check | push: `github.event.before...github.sha` ; push (第一次): `git show --check --format= HEAD` ; PR: `base.sha...HEAD` | 尾随空格检测 |
 | Summary | 打印失败提示 | 帮助定位 |
 
@@ -118,6 +118,18 @@ us_trader/us_pipeline.py
 原测试 `assert str(PROJECT_ROOT).endswith("quant")` 要求项目目录名以 `quant` 结尾。
 GitHub Actions 检出目录为 `quantbot-engine`，导致首次 CI 必然失败。
 修复为结构验证：`assert (PROJECT_ROOT / "core" / "paths.py").is_file()` 等，完全不依赖目录名称。
+
+### 历史错误：CI 上 test_dry_run_calls_executor 挂起 20 分钟
+
+> 🐛 已修复（2026-06-04 第三轮修正）。
+
+根因：`test_live_guardrails.py::TestExecutionPath::_run_with_mocks` 未 mock `MarketStateClassifier` 的数据加载。
+在 `run()` 内部，`MarketStateClassifier('SPY.US').load_data()` 依次尝试：
+1. `FutuAdapter.fetch_kline()` → 127.0.0.1:11111 连接（CI 无 OpenD，快速失败）
+2. `TickFlow.free().klines.get()` → 外部 API（CI 无网络，无限挂起）
+
+由于 `try-except` 在 TickFlow 超时前无法捕获，测试在 CI 上每次挂起 20 分钟。
+修复：在 `_run_with_mocks` 中额外 patch `market_state.classifier.load_price_data` 和 `load_vix_data`，返回 `None`。
 
 ### 关于 `E:\.github\workflows\smoke.yml` 遗留文件
 
