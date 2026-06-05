@@ -110,7 +110,6 @@ class RiskManager:
             if code not in active_codes:
                 self.entry_prices.pop(code, None)
                 self.highest_prices.pop(code, None)
-                self.stop_timestamps.pop(code, None)
                 self.latest_atr.pop(code, None)
         self.save_state()
 
@@ -205,9 +204,15 @@ class RiskManager:
         return {'triggered': False, 'action': None, 'reason': 'OK', 'pnl': 0.0}
 
     # === 冷却期管理 ==============================================
-    def record_stop(self, code):
-        """记录止损事件，启动冷却期。"""
-        self.stop_timestamps[code] = datetime.now().isoformat()
+    def confirm_stop(self, code, filled_at=None):
+        """成交确认后记录止损事件，启动冷却期。
+
+        filled_at is persisted when available so crash-recovery retries are
+        idempotent and keep the broker-confirmed timestamp.
+        """
+        if code in self.stop_timestamps:
+            return
+        self.stop_timestamps[code] = filled_at or datetime.now().isoformat()
         self.save_state()
 
     def is_in_cooldown(self, code):

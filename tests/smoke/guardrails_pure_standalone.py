@@ -20,6 +20,8 @@ from datetime import datetime
 def _is_live_confirmed(args) -> bool:
     if not args.live:
         return False
+    if os.environ.get('QUANT_LIVE_KILLED', '').upper() == 'YES':
+        return False
     if args.confirm_live:
         return True
     if os.environ.get('QUANT_LIVE_CONFIRM', '').upper() == 'YES':
@@ -154,8 +156,11 @@ os.environ['QUANT_LIVE_CONFIRM'] = 'yes'
 check('live_with_env_lower', _is_live_confirmed(argparse.Namespace(live=True, confirm_live=False)), True)
 check('confirm_no_live', _is_live_confirmed(argparse.Namespace(live=False, confirm_live=True)), False)
 check('env_no_live', _is_live_confirmed(argparse.Namespace(live=False, confirm_live=False)), False)
+os.environ['QUANT_LIVE_KILLED'] = 'YES'
+check('kill_switch_blocks_cli', _is_live_confirmed(argparse.Namespace(live=True, confirm_live=True)), False)
+os.environ.pop('QUANT_LIVE_KILLED', None)
 os.environ.pop('QUANT_LIVE_CONFIRM', None)
-print(f'is_live_confirmed: 7/7')
+print(f'is_live_confirmed: 8/8')
 
 # ── _build_pre_trade_summary ──
 acct = {'total_assets': 1500000, 'cash': 1400000, 'market_val': 100000}

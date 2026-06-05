@@ -20,20 +20,23 @@ except ImportError:
     FUTU_AVAILABLE = False
 
 from .utils import to_futu_code
-from .futu_adapter import FutuAdapter
+from .futu_adapter import FutuAdapter, PlaceOrderResult
+from .order_journal import OrderJournal, OrderStatus
 
 
 class OrderExecutor:
     """统一订单执行器 — 支持港股+美股。"""
 
-    def __init__(self, host='127.0.0.1', port=11111, dry_run=True):
+    def __init__(self, host='127.0.0.1', port=11111, dry_run=True,
+                 journal_factory=None):
         self.host = host
         self.port = port
         self.dry_run = dry_run
         self.trade_log = []
         self._adapter = FutuAdapter(host=host, port=port)
+        self._journal_factory = journal_factory or OrderJournal
 
-    def execute_orders(self, orders, log_path=None):
+    def execute_orders(self, orders, log_path=None, risk_manager=None):
         """批量执行订单列表。
         
         Args:
@@ -66,7 +69,9 @@ class OrderExecutor:
         ]:
             if not mkt_orders:
                 continue
-            mkt_results = self._execute_market(market, mkt_orders, label)
+            mkt_results = self._execute_market(
+                market, mkt_orders, label, risk_manager=risk_manager,
+            )
             results.extend(mkt_results)
 
         # 保存日志
@@ -75,9 +80,15 @@ class OrderExecutor:
 
         return results
 
-    def _execute_market(self, market, orders, label):
+    def _execute_market(self, market, orders, label, risk_manager=None):
         """执行单一市场的订单。"""
         results = []
+
+        if self.dry_run:
+            for order in orders:
+                result = self._place_single_order(order, market)
+                results.append(result)
+            return results
 
         if not FUTU_AVAILABLE:
             for o in orders:
@@ -87,13 +98,75 @@ class OrderExecutor:
                 })
             return results
 
-        for order in orders:
-            result = self._place_single_order(order, market)
-            results.append(result)
+        journal = self._journal_factory(market)
+        token = journal.acquire_lease()
+        if not token:
+            journal.close()
+            raise RuntimeError(f'{market} execution lease is already ACTIVE; manual reconciliation required')
+
+        try:
+            journal.reconcile(self._adapter)
+            journal.apply_stop_side_effects(risk_manager)
+            if journal.has_blocking_orders():
+                unresolved = journal.unresolved_orders()
+                raise RuntimeError(
+                    f'{market} has unresolved orders before new execution: '
+                    f'{[(o["intent_id"][:8], o["status"]) for o in unresolved]}'
+                )
+
+            sell_orders = [o for o in orders if o['action'].upper() == 'SELL']
+            buy_orders = [o for o in orders if o['action'].upper() == 'BUY']
+
+            sell_results = []
+            for order in sell_orders:
+                result = self._place_single_order(
+                    order, market, journal=journal,
+                    risk_manager=risk_manager,
+                )
+                sell_results.append(result)
+                results.append(result)
+
+            if sell_orders:
+                sell_statuses = {r.get('status') for r in sell_results}
+                if sell_statuses != {OrderStatus.FILLED_ALL.value}:
+                    for order in buy_orders:
+                        skipped = {
+                            **order,
+                            'futu_code': to_futu_code(order['symbol']),
+                            'status': 'SKIP',
+                            'message': 'LIVE BUY skipped because not all SELL orders FILLED_ALL',
+                        }
+                        results.append(skipped)
+                        self.trade_log.append(skipped)
+                    return results
+
+            for order in buy_orders:
+                if any(r.get('status') in OrderStatus.uncertain_set() for r in results):
+                    skipped = {
+                        **order,
+                        'futu_code': to_futu_code(order['symbol']),
+                        'status': 'SKIP',
+                        'message': 'LIVE BUY skipped after uncertain prior order',
+                    }
+                    results.append(skipped)
+                    self.trade_log.append(skipped)
+                    continue
+                result = self._place_single_order(
+                    order, market, journal=journal,
+                    risk_manager=risk_manager,
+                )
+                results.append(result)
+
+            journal.reconcile(self._adapter)
+            journal.apply_stop_side_effects(risk_manager)
+            return results
+        finally:
+            journal.release_lease()
+            journal.close()
 
         return results
 
-    def _place_single_order(self, order, market):
+    def _place_single_order(self, order, market, journal=None, risk_manager=None):
         """执行单笔订单。使用 FutuAdapter 统一下单。"""
         symbol = order['symbol']
         action = order['action']
@@ -133,36 +206,63 @@ class OrderExecutor:
 
         # 实际下单（通过 FutuAdapter 统一下单）
         try:
-            ok, result = self._adapter.place_order(
-                symbol=symbol, side=action, qty=qty,
-                price_type='LIMIT', limit_price=price,
-                market=market,
-            )
-            if ok:
+            if journal is None:
+                raise RuntimeError('LIVE execution requires an OrderJournal')
+
+            journal_entry = journal.reserve_order({
+                **order,
+                'symbol': symbol,
+                'futu_code': futu_code,
+                'action': action,
+                'qty': qty,
+                'price': price,
+            })
+            if journal_entry['status'] != OrderStatus.RESERVED.value:
                 log_entry = {
                     'time': datetime.now().isoformat(),
                     'symbol': symbol, 'futu_code': futu_code,
                     'action': action, 'qty': qty, 'price': price,
                     'cost': round(qty * price, 2),
-                    'order_id': result,
+                    'order_id': journal_entry.get('order_id', ''),
+                    'intent_id': journal_entry['intent_id'],
+                    'broker_remark': journal_entry['broker_remark'],
                     'reason': reason,
-                    'status': 'OK', 'message': f'order_id={result}',
+                    'status': journal_entry['status'],
+                    'message': 'existing journal intent; broker submit suppressed',
                 }
                 self.trade_log.append(log_entry)
-                print(f'  [ORDER] {action} {futu_code} {qty}股 @ {price:.2f} → {result}  ({reason})')
+                print(f'  [JOURNAL] {action} {futu_code}: existing intent {journal_entry["status"]}')
                 return log_entry
-            else:
-                log_entry = {
-                    **order, 'futu_code': futu_code,
-                    'status': 'ERROR', 'message': result,
-                }
-                self.trade_log.append(log_entry)
-                print(f'  [ERROR] {action} {futu_code}: {result}')
-                return log_entry
+
+            journal.mark_submitting(journal_entry['intent_id'])
+            result: PlaceOrderResult = self._adapter.place_order(
+                symbol=symbol, side=action, qty=qty,
+                price_type='LIMIT', limit_price=price,
+                market=market,
+                remark=journal_entry['broker_remark'],
+            )
+            final_entry = journal.record_place_result(journal_entry['intent_id'], result)
+            journal.apply_stop_side_effects(risk_manager)
+            log_entry = {
+                'time': datetime.now().isoformat(),
+                'symbol': symbol, 'futu_code': futu_code,
+                'action': action, 'qty': qty, 'price': price,
+                'cost': round(qty * price, 2),
+                'order_id': result.order_id,
+                'intent_id': journal_entry['intent_id'],
+                'broker_remark': journal_entry['broker_remark'],
+                'reason': reason,
+                'status': final_entry.get('status', result.status.value),
+                'message': result.message or f'order_id={result.order_id}',
+            }
+            self.trade_log.append(log_entry)
+            print(f'  [ORDER] {action} {futu_code} {qty}股 @ {price:.2f} → {log_entry["status"]} {result.order_id}  ({reason})')
+            return log_entry
         except Exception as e:
             log_entry = {
                 **order, 'futu_code': futu_code,
-                'status': 'ERROR', 'message': str(e),
+                'status': OrderStatus.UNKNOWN.value if not self.dry_run else 'ERROR',
+                'message': str(e),
             }
             self.trade_log.append(log_entry)
             print(f'  [ERROR] {action} {futu_code}: {e}')

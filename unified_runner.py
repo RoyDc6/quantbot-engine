@@ -42,6 +42,7 @@ from core.position_manager import (
     calc_buy_shares, calc_signal_budget,
 )
 from core.order_executor import OrderExecutor
+from core.order_journal import OrderStatus
 from core.utils import dict_json_safe, to_futu_code, to_standard_symbol
 
 import config
@@ -229,16 +230,27 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
     print(f'  Step 2: Futu 账户查询')
     print(f'{"="*65}')
 
-    account = adapter.get_account_info(market)
-    if account is None:
-        print(f'  [ERROR] 无法查询{mkt_label}账户')
+    try:
+        account = _require_query_result(
+            adapter.get_account_info(market),
+            f'{mkt_label}账户',
+        )
+    except RuntimeError as e:
+        print(f'  [ERROR] {e}')
         return
 
     total_assets = account['total_assets']
     cash = account['cash']
     print(f'  总资产: {total_assets:,.0f} | 现金: {cash:,.0f} | 持仓市值: {account["market_val"]:,.0f}')
 
-    positions = adapter.get_positions(market)
+    try:
+        positions = _require_query_result(
+            adapter.get_positions(market),
+            f'{mkt_label}持仓',
+        )
+    except RuntimeError as e:
+        print(f'  [ERROR] {e}')
+        return
     held_map = {}  # {std_symbol: pos_dict}
     print(f'  持仓: {len(positions)} 只')
     for p in positions:
@@ -305,6 +317,7 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
                     orders.append({
                         'symbol': sym, 'action': 'SELL', 'qty': qty,
                         'price': p['current_price'], 'lot_size': lot,
+                        'intent_type': 'REVERSAL_SELL',
                         'reason': reason,
                     })
                     sold_codes.add(p['code'])
@@ -323,10 +336,10 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
                 lot = lot_sizes.get(sym, 100)
                 qty = (qty // lot) * lot
                 if qty > 0:
-                    risk_mgr.record_stop(p['code'])
                     orders.append({
                         'symbol': sym, 'action': 'SELL', 'qty': qty,
                         'price': p['current_price'], 'lot_size': lot,
+                        'intent_type': 'STOP_SELL',
                         'reason': stop_result['reason'],
                     })
                     sold_codes.add(p['code'])
@@ -418,6 +431,7 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
         orders.append({
             'symbol': symbol, 'action': 'BUY', 'qty': first_shares,
             'price': price, 'lot_size': lot,
+            'intent_type': 'SIGNAL_BUY',
             'reason': f'{level} score={sig["fusion_score"]:+.0f}{staged_info}',
         })
 
@@ -473,15 +487,29 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
 
     if not orders:
         print('  无订单需要执行')
-    elif execution_mode in ('LIVE_CONFIRMED', 'DRY_RUN'):
-        executor_dry_run = (execution_mode == 'DRY_RUN')
+    elif execution_mode == 'DRY_RUN':
         executor = OrderExecutor(
             host=config.FUTU_HOST, port=config.FUTU_PORT,
-            dry_run=executor_dry_run,
+            dry_run=True,
         )
         ts_str = datetime.now().strftime('%Y%m%d_%H%M%S')
         log_path = str(log_dir / f'trades_{market}_{ts_str}.json')
-        results = executor.execute_orders(orders, log_path=log_path)
+        results = executor.execute_orders(orders, log_path=log_path, risk_manager=risk_mgr)
+    elif execution_mode == 'LIVE_CONFIRMED':
+        executor = OrderExecutor(
+            host=config.FUTU_HOST, port=config.FUTU_PORT,
+            dry_run=False,
+        )
+        ts_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+        log_path = str(log_dir / f'trades_{market}_{ts_str}.json')
+        results = _execute_live_confirmed_orders(
+            executor=executor,
+            adapter=adapter,
+            risk_mgr=risk_mgr,
+            market=market,
+            orders=orders,
+            log_path=log_path,
+        )
     elif execution_mode in ('LIVE_BLOCKED_BY_CONFIRM', 'LIVE_BLOCKED_BY_RULES'):
         print(f'  [GUARDRAIL] 订单已生成但未执行 (mode={execution_mode})')
         print(f'  [GUARDRAIL] 共 {len(orders)} 笔订单，详情见上方 pre-trade summary')
@@ -530,6 +558,114 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
     print(f'{"="*65}')
 
 
+def _require_query_result(value, label):
+    """Return query data or fail closed.
+
+    Real FutuAdapter methods return QueryResult.  Existing tests sometimes mock
+    raw dict/list values, so this helper accepts both shapes.
+    """
+    if hasattr(value, 'require'):
+        return value.require(label)
+    if value is None:
+        raise RuntimeError(f'{label}查询失败')
+    return value
+
+
+def _execute_live_confirmed_orders(executor, adapter, risk_mgr, market, orders, log_path):
+    """LIVE_CONFIRMED execution: SELL first, re-query, then BUY."""
+    sell_orders = [o for o in orders if o['action'].upper() == 'SELL']
+    buy_orders = [o for o in orders if o['action'].upper() == 'BUY']
+    results = []
+
+    if sell_orders:
+        sell_log_path = log_path.replace('.json', '_SELL.json')
+        sell_results = executor.execute_orders(
+            sell_orders, log_path=sell_log_path, risk_manager=risk_mgr,
+        )
+        results.extend(sell_results)
+        if any(r.get('status') != OrderStatus.FILLED_ALL.value for r in sell_results):
+            for order in buy_orders:
+                skipped = {
+                    **order,
+                    'status': 'SKIP',
+                    'message': 'LIVE BUY skipped because SELL did not reach FILLED_ALL',
+                }
+                results.append(skipped)
+            return results
+
+    if not buy_orders:
+        return results
+
+    account, positions = _requery_after_sell(adapter, market)
+    filtered_buys = _filter_live_buy_orders(
+        buy_orders=buy_orders,
+        account=account,
+        positions=positions,
+        risk_mgr=risk_mgr,
+    )
+    skipped = [o for o in buy_orders if o not in filtered_buys]
+    for order in skipped:
+        results.append({
+            **order,
+            'status': 'SKIP',
+            'message': 'LIVE BUY skipped by post-SELL realtime risk check',
+        })
+
+    if filtered_buys:
+        buy_log_path = log_path.replace('.json', '_BUY.json')
+        results.extend(executor.execute_orders(
+            filtered_buys, log_path=buy_log_path, risk_manager=risk_mgr,
+        ))
+    return results
+
+
+def _requery_after_sell(adapter, market):
+    """Re-query live account and positions before any BUY after SELL."""
+    account = _require_query_result(
+        adapter.get_account_info(market),
+        f'{market}账户再查询',
+    )
+    positions = _require_query_result(
+        adapter.get_positions(market),
+        f'{market}持仓再查询',
+    )
+    return account, positions
+
+
+def _filter_live_buy_orders(buy_orders, account, positions, risk_mgr):
+    """Apply realtime cash/exposure limits and decrement cash per BUY."""
+    total_assets = float(account.get('total_assets', 0) or 0)
+    running_cash = float(account.get('cash', 0) or 0)
+    current_exposure = sum(float(p.get('market_val', 0) or 0) for p in positions)
+    approved = []
+
+    for order in buy_orders:
+        trade_val = float(order['qty']) * float(order['price'])
+        if trade_val > running_cash:
+            print(f'  [LIVE SKIP] {order["symbol"]}: 现金不足 {trade_val:,.0f} > {running_cash:,.0f}')
+            continue
+        ok, reason = risk_mgr.check_position_limit(
+            to_futu_code(order['symbol']),
+            trade_val,
+            total_assets,
+        )
+        if not ok:
+            print(f'  [LIVE SKIP] {order["symbol"]}: {reason}')
+            continue
+        ok, reason = risk_mgr.check_total_exposure(
+            current_exposure,
+            trade_val,
+            total_assets,
+        )
+        if not ok:
+            print(f'  [LIVE SKIP] {order["symbol"]}: {reason}')
+            continue
+        approved.append(order)
+        running_cash -= trade_val
+        current_exposure += trade_val
+    return approved
+
+
 # === Live Guardrails (Phase B) ===========================================
 
 def _is_live_confirmed(args) -> bool:
@@ -540,6 +676,10 @@ def _is_live_confirmed(args) -> bool:
     - 同时设置时以 --confirm-live 为准
     """
     if not args.live:
+        return False
+    if os.environ.get('QUANT_LIVE_KILLED', '').upper() == 'YES':
+        return False
+    if (BASE / 'output' / 'LIVE_DISABLED_FLAG').exists():
         return False
     if args.confirm_live:
         return True

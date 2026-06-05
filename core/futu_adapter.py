@@ -9,7 +9,8 @@ core/futu_adapter.py - QuantBot Futu API 适配层
 """
 
 import json
-from typing import Optional, List, Dict, Tuple
+from dataclasses import dataclass
+from typing import Optional, List, Dict, Tuple, Any
 from datetime import datetime, timedelta
 import sys
 from pathlib import Path
@@ -34,6 +35,30 @@ if str(BASE) not in sys.path:
 from config import FUTU_HOST, FUTU_PORT
 
 from core.base_adapter import BaseAdapter
+from core.order_journal import OrderStatus, normalize_order_status
+
+
+@dataclass(frozen=True)
+class QueryResult:
+    ok: bool
+    data: Any = None
+    error: str = ''
+
+    def require(self, label: str = 'query') -> Any:
+        if not self.ok:
+            raise RuntimeError(f'{label} failed: {self.error}')
+        return self.data
+
+
+@dataclass(frozen=True)
+class PlaceOrderResult:
+    status: OrderStatus
+    order_id: str = ''
+    futu_status: str = ''
+    dealt_qty: float = 0.0
+    dealt_avg_price: float = 0.0
+    message: str = ''
+    filled_at: str = ''
 
 
 class FutuAdapter(BaseAdapter):
@@ -206,7 +231,7 @@ class FutuAdapter(BaseAdapter):
         return quotes.get(symbol)
 
     # ─── 账户信息 ──────────────────────────────────────────────
-    def get_account_info(self, market: str = 'HK') -> Optional[Dict]:
+    def get_account_info(self, market: str = 'HK') -> QueryResult:
         """查询模拟账户信息。
 
         Args:
@@ -216,7 +241,7 @@ class FutuAdapter(BaseAdapter):
             {total_assets, cash, market_val, power} | None
         """
         if not self._available:
-            return None
+            return QueryResult(False, error='futu-api 未安装')
         mkt = ft.Market.HK if market.upper() == 'HK' else ft.Market.US
         try:
             ctx = ft.OpenSecTradeContext(
@@ -226,27 +251,27 @@ class FutuAdapter(BaseAdapter):
             try:
                 ret, acc = ctx.accinfo_query(trd_env=ft.TrdEnv.SIMULATE)
                 if ret != ft.RET_OK:
-                    return None
+                    return QueryResult(False, error=str(acc))
                 row = acc.iloc[0]
-                return {
+                return QueryResult(True, {
                     'total_assets': float(row.get('total_assets', 0)),
                     'cash': float(row.get('cash', 0)),
                     'market_val': float(row.get('market_val', 0)),
                     'power': float(row.get('power', 0)),
-                }
+                })
             finally:
                 ctx.close()
-        except Exception:
-            return None
+        except Exception as e:
+            return QueryResult(False, error=str(e))
 
-    def get_positions(self, market: str = 'HK') -> List[Dict]:
+    def get_positions(self, market: str = 'HK') -> QueryResult:
         """查询模拟账户持仓。
 
         Returns:
             [{code, name, qty, can_sell_qty, cost_price, current_price, market_val}]
         """
         if not self._available:
-            return []
+            return QueryResult(False, error='futu-api 未安装')
         mkt = ft.Market.HK if market.upper() == 'HK' else ft.Market.US
         try:
             ctx = ft.OpenSecTradeContext(
@@ -256,15 +281,17 @@ class FutuAdapter(BaseAdapter):
             try:
                 ret, pdata = ctx.position_list_query(trd_env=ft.TrdEnv.SIMULATE)
                 if ret != ft.RET_OK or pdata is None:
-                    return []
+                    return QueryResult(False, error=str(pdata))
                 positions = []
                 for _, row in pdata.iterrows():
                     qty = float(row.get('qty', 0))
                     cost = float(row.get('cost_price', 0))
                     val = float(row.get('market_val', 0))
                     cur = val / max(qty, 1)
+                    futu_code = str(row.get('code', ''))
                     positions.append({
-                        'code': self._to_std(row['code']),
+                        'code': futu_code,
+                        'symbol': self._to_std(futu_code),
                         'name': str(row.get('stock_name', '')),
                         'qty': qty,
                         'can_sell_qty': float(row.get('can_sell_qty', qty)),
@@ -273,16 +300,16 @@ class FutuAdapter(BaseAdapter):
                         'market_val': val,
                         'pnl_pct': (cur / cost - 1) * 100 if cost > 0 else 0,
                     })
-                return positions
+                return QueryResult(True, positions)
             finally:
                 ctx.close()
-        except Exception:
-            return []
+        except Exception as e:
+            return QueryResult(False, error=str(e))
 
     # ─── 下单 ──────────────────────────────────────────────────
     def place_order(self, symbol: str, side: str, qty: int,
                     price_type: str = 'MARKET', limit_price: float = 0.0,
-                    market: str = 'HK') -> Tuple[bool, str]:
+                    market: str = 'HK', remark: str = '') -> PlaceOrderResult:
         """下模拟订单。
 
         Args:
@@ -294,10 +321,14 @@ class FutuAdapter(BaseAdapter):
             market: 'HK' 或 'US'
 
         Returns:
-            (success: bool, order_id_or_reason: str)
+            PlaceOrderResult.  RET_ERROR is treated as TIMEOUT because the SDK
+            does not return authoritative order status in that branch.
         """
         if not self._available:
-            return False, 'futu-api 未安装'
+            return PlaceOrderResult(
+                status=OrderStatus.UNKNOWN,
+                message='futu-api 未安装',
+            )
 
         trd_side = ft.TrdSide.BUY if side.upper() == 'BUY' else ft.TrdSide.SELL
         mkt = ft.Market.HK if market.upper() == 'HK' else ft.Market.US
@@ -316,16 +347,74 @@ class FutuAdapter(BaseAdapter):
                     trd_side=trd_side,
                     trd_env=ft.TrdEnv.SIMULATE,
                     order_type=ft.OrderType.NORMAL,
-                    fill_side_type=ft.FillSideType.FILL_OR_KILL if price_type == 'LIMIT'
-                    else ft.FillSideType.NORMAL,
+                    remark=remark or None,
+                    time_in_force=ft.TimeInForce.DAY,
                 )
                 if ret == ft.RET_OK and data is not None and len(data) > 0:
-                    return True, str(data.iloc[0].get('order_id', 'OK'))
-                return False, f'下单失败: ret={ret}'
+                    row = data.iloc[0]
+                    futu_status = row.get('order_status', '')
+                    status = normalize_order_status(futu_status)
+                    return PlaceOrderResult(
+                        status=status,
+                        order_id=str(row.get('order_id', '') or ''),
+                        futu_status=str(futu_status or ''),
+                        dealt_qty=float(row.get('dealt_qty', 0) or 0),
+                        dealt_avg_price=float(row.get('dealt_avg_price', 0) or 0),
+                        message=str(row.get('last_err_msg', '') or ''),
+                    )
+                return PlaceOrderResult(
+                    status=OrderStatus.TIMEOUT,
+                    message=f'下单未返回权威订单状态: ret={ret}, data={data}',
+                )
             finally:
                 ctx.close()
         except Exception as e:
-            return False, f'下单异常: {e}'
+            return PlaceOrderResult(
+                status=OrderStatus.UNKNOWN,
+                message=f'下单异常: {e}',
+            )
+
+    def get_order_list(self, market: str = 'HK',
+                       start: str = '', end: str = '') -> QueryResult:
+        """查询模拟账户订单列表，供 journal 恢复/对账使用。"""
+        if not self._available:
+            return QueryResult(False, error='futu-api 未安装')
+        mkt = ft.Market.HK if market.upper() == 'HK' else ft.Market.US
+        try:
+            ctx = ft.OpenSecTradeContext(
+                filter_trdmarket=mkt,
+                host=self.host, port=self.port,
+            )
+            try:
+                ret, data = ctx.order_list_query(
+                    start=start,
+                    end=end,
+                    trd_env=ft.TrdEnv.SIMULATE,
+                    refresh_cache=True,
+                )
+                if ret != ft.RET_OK or data is None:
+                    return QueryResult(False, error=str(data))
+                orders = []
+                for _, row in data.iterrows():
+                    orders.append({
+                        'order_id': str(row.get('order_id', '') or ''),
+                        'code': str(row.get('code', '') or ''),
+                        'order_status': row.get('order_status', ''),
+                        'trd_side': str(row.get('trd_side', '') or ''),
+                        'qty': float(row.get('qty', 0) or 0),
+                        'price': float(row.get('price', 0) or 0),
+                        'dealt_qty': float(row.get('dealt_qty', 0) or 0),
+                        'dealt_avg_price': float(row.get('dealt_avg_price', 0) or 0),
+                        'remark': str(row.get('remark', '') or ''),
+                        'last_err_msg': str(row.get('last_err_msg', '') or ''),
+                        'create_time': str(row.get('create_time', '') or ''),
+                        'updated_time': str(row.get('updated_time', '') or ''),
+                    })
+                return QueryResult(True, orders)
+            finally:
+                ctx.close()
+        except Exception as e:
+            return QueryResult(False, error=str(e))
 
     # ─── VIX 数据 ──────────────────────────────────────────────
     def fetch_vix_data(self, cache_path: Optional[str] = None) -> Dict[str, float]:
