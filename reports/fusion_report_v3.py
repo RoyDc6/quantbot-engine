@@ -910,10 +910,22 @@ def _load_prev_signals(date: str, market: str) -> list:
             if sig_file.exists():
                 with open(sig_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    return data.get('signals', [])
+                    signals = data.get('signals', [])
+                    if _valid_prev_signals(signals):
+                        return signals
     except Exception:
         pass
     return []
+
+
+def _valid_prev_signals(signals: list) -> bool:
+    """Reject corrupted history snapshots before building signal deltas."""
+    if not signals:
+        return False
+    symbols = [sig.get('symbol') for sig in signals if isinstance(sig, dict)]
+    if len(symbols) != len(signals):
+        return False
+    return len(set(symbols)) == len(symbols)
 
 
 def _extract_root_cause(sig: dict) -> str:

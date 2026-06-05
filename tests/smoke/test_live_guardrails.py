@@ -10,6 +10,7 @@ Phase B — Live Guardrails 测试套件。
 
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -104,35 +105,43 @@ class TestExecutionPath:
                          requested_live=False, live_confirmed=False):
         from unified_runner import run
 
-        with patch('unified_runner.FutuAdapter') as MockFA:
-            inst = MockFA.return_value
-            inst.test_connection.return_value = (True, 'Mock OK')
-            inst.fetch_vix_data.return_value = {'vix': 15.0}
-            inst.get_account_info.return_value = {
-                'total_assets': 1500000, 'cash': 1400000, 'market_val': 0,
-            }
-            inst.get_positions.return_value = []
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_root = Path(tmp)
+            sig_dir = tmp_root / 'paper_trading' / 'signals'
+            report_dir = tmp_root / 'reports'
 
-            with patch('unified_runner.OrderExecutor') as MockOE:
-                mock_exec = MagicMock()
-                MockOE.return_value = mock_exec
+            with patch('unified_runner.BASE', tmp_root):
+                with patch('reports.fusion_report_v3.SIGNAL_DIR', sig_dir):
+                    with patch('reports.fusion_report_v3.REPORT_DIR', report_dir):
+                        with patch('unified_runner.FutuAdapter') as MockFA:
+                            inst = MockFA.return_value
+                            inst.test_connection.return_value = (True, 'Mock OK')
+                            inst.fetch_vix_data.return_value = {'vix': 15.0}
+                            inst.get_account_info.return_value = {
+                                'total_assets': 1500000, 'cash': 1400000, 'market_val': 0,
+                            }
+                            inst.get_positions.return_value = []
 
-                with patch('unified_runner.FusionController') as MockFC:
-                    fc_inst = MockFC.return_value
-                    fc_inst.analyze_ticker.return_value = _make_buy_signal('00700.HK')
+                            with patch('unified_runner.OrderExecutor') as MockOE:
+                                mock_exec = MagicMock()
+                                MockOE.return_value = mock_exec
 
-                    # Patch MarketStateClassifier 的数据加载（CI 无 OpenD / TickFlow）
-                    with patch('market_state.classifier.load_price_data') as MockLoadPrice:
-                        MockLoadPrice.return_value = None
-                        with patch('market_state.classifier.load_vix_data') as MockLoadVix:
-                            MockLoadVix.return_value = None
+                                with patch('unified_runner.FusionController') as MockFC:
+                                    fc_inst = MockFC.return_value
+                                    fc_inst.analyze_ticker.return_value = _make_buy_signal('00700.HK')
 
-                            run(market=market, dry_run=dry_run, signal_only=False,
-                                no_stop=False,
-                                requested_live=requested_live,
-                                live_confirmed=live_confirmed,
-                                )
-                            return mock_exec, MockOE
+                                    # Patch MarketStateClassifier 的数据加载（CI 无 OpenD / TickFlow）
+                                    with patch('market_state.classifier.load_price_data') as MockLoadPrice:
+                                        MockLoadPrice.return_value = None
+                                        with patch('market_state.classifier.load_vix_data') as MockLoadVix:
+                                            MockLoadVix.return_value = None
+
+                                            run(market=market, dry_run=dry_run, signal_only=False,
+                                                no_stop=False,
+                                                requested_live=requested_live,
+                                                live_confirmed=live_confirmed,
+                                                )
+                                            return mock_exec, MockOE
 
     def test_dry_run_calls_executor(self):
         """普通 dry-run（无 --live）应调用 execute_orders。"""
