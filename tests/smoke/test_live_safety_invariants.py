@@ -3,11 +3,12 @@
 Phase E — Live Safety Invariants 测试套件。
 
 目标：
-    将已确认的安全边界固化为自动测试，防止未来修改意外恢复自动 --live
-    或在生产路径引入 TrdEnv.REAL。
+    将已确认的安全边界固化为自动测试，防止计划任务偏离
+    Roy 授权的 Futu 模拟账户自动执行路径，或在生产路径引入
+    TrdEnv.REAL。
 
 覆盖范围：
-    1. scheduled_hk.bat / scheduled_us.bat 不得包含 --live
+    1. scheduled_hk.bat / scheduled_us.bat 必须包含 --live --confirm-live
     2. scheduled bat 必须调用 unified_runner.py
     3. 生产路径不得出现 TrdEnv.REAL
     4. core/futu_adapter.py place_order 必须使用 TrdEnv.SIMULATE
@@ -83,7 +84,7 @@ def check_content_in_files(files: list[Path], pattern: str,
 # ── 不变量 1－2: 定时任务 bat 文件 ─────────────────────────────
 
 class TestScheduledBatFiles:
-    """> scheduled_hk.bat / scheduled_us.bat 安全扫描。"""
+    """> scheduled_hk.bat / scheduled_us.bat 自动模拟执行扫描。"""
 
     BAT_FILES = ['scheduled_hk.bat', 'scheduled_us.bat']
 
@@ -92,12 +93,15 @@ class TestScheduledBatFiles:
         assert path.exists(), f'{name} not found at {path}'
         return path.read_text(encoding='utf-8', errors='replace')
 
-    def test_no_live_flag(self):
-        """不得包含 --live。"""
+    def test_confirmed_live_flags_present(self):
+        """计划任务必须自动进入确认执行路径（当前仍是 Futu SIMULATE）。"""
         for name in self.BAT_FILES:
             content = self._read_bat(name)
-            assert '--live' not in content, (
-                f'致命：{name} 包含 --live，恢复了自动实盘！'
+            assert '--live' in content, (
+                f'{name} 未包含 --live，计划任务不会自动执行模拟订单'
+            )
+            assert '--confirm-live' in content, (
+                f'{name} 未包含 --confirm-live，会被 LIVE_BLOCKED_BY_CONFIRM 拦截'
             )
 
     def test_calls_unified_runner(self):
