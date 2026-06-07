@@ -31,6 +31,7 @@ class OrderStatus(str, Enum):
     REJECTED = 'REJECTED'
     TIMEOUT = 'TIMEOUT'
     UNKNOWN = 'UNKNOWN'
+    CANCELLING = 'CANCELLING'
     CANCELLED_PART = 'CANCELLED_PART'
     CANCELLED_ALL = 'CANCELLED_ALL'
     FAILED = 'FAILED'
@@ -55,6 +56,7 @@ class OrderStatus(str, Enum):
     def uncertain_set(cls) -> set[str]:
         return {
             cls.SUBMITTING.value,
+            cls.CANCELLING.value,
             cls.TIMEOUT.value,
             cls.UNKNOWN.value,
         }
@@ -63,6 +65,7 @@ class OrderStatus(str, Enum):
     def human_intervention_set(cls) -> set[str]:
         return {
             cls.FILLED_PART.value,
+            cls.CANCELLING.value,
             cls.CANCELLED_PART.value,
             cls.FILL_CANCELLED.value,
             cls.TIMEOUT.value,
@@ -85,8 +88,8 @@ FUTU_TO_QUANTBOT: dict[str, OrderStatus] = {
     'SUBMITTED': OrderStatus.SUBMITTED,
     'FILLED_PART': OrderStatus.FILLED_PART,
     'FILLED_ALL': OrderStatus.FILLED_ALL,
-    'CANCELLING_PART': OrderStatus.CANCELLED_PART,
-    'CANCELLING_ALL': OrderStatus.CANCELLED_ALL,
+    'CANCELLING_PART': OrderStatus.CANCELLING,
+    'CANCELLING_ALL': OrderStatus.CANCELLING,
     'CANCELLED_PART': OrderStatus.CANCELLED_PART,
     'CANCELLED_ALL': OrderStatus.CANCELLED_ALL,
     'FAILED': OrderStatus.REJECTED,

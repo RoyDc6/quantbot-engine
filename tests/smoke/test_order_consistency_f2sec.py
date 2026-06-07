@@ -246,3 +246,12 @@ def test_sdk_status_mapping_is_exhaustive():
         journal.close()
     assert normalize_order_status('FILLED_ALL') == OrderStatus.FILLED_ALL
     assert normalize_order_status('N/A') == OrderStatus.UNKNOWN
+
+
+def test_cancelling_statuses_remain_blocking_non_terminal():
+    for raw_status in ('CANCELLING_PART', 'CANCELLING_ALL', 12, 13):
+        status = normalize_order_status(raw_status)
+        assert status == OrderStatus.CANCELLING
+        assert status.value not in OrderStatus.terminal_set()
+        assert status.value in OrderStatus.blocking_set()
+        assert status.value in OrderStatus.uncertain_set()
