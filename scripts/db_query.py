@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 """
 scripts/db_query.py - QuantDB CLI 查询工具
+
+注意:
+  quant.db 是历史归档/研究查询库，不是当前交易状态源。
+  当前运行链路的最新信号/报告来自 paper_trading/signals/ 与 reports/，
+  当前持仓以 Futu 查询为准。
+
 用法:
   python scripts/db_query.py stats                  # 数据库统计
   python scripts/db_query.py signals [--days 30]    # 最近信号
@@ -23,6 +29,48 @@ sys.path.insert(0, str(_ROOT))
 from core.paths import PROJECT_ROOT
 
 from core.quant_db import QuantDB
+
+
+def _max_table_date(db, table: str) -> str | None:
+    """Return max(date) for a QuantDB table, or None if unavailable."""
+    try:
+        row = db.conn.execute(f'SELECT MAX(date) AS max_date FROM {table}').fetchone()
+        return row['max_date'] if row else None
+    except Exception:
+        return None
+
+
+def _latest_signal_json_date(signal_dir: Path | None = None) -> str | None:
+    """Return latest YYYY-MM-DD date from generated signal JSON files."""
+    sig_dir = signal_dir or PROJECT_ROOT / 'paper_trading' / 'signals'
+    if not sig_dir.exists():
+        return None
+
+    dates = []
+    for path in sig_dir.glob('*.json'):
+        prefix = path.name.split('_', 1)[0]
+        if len(prefix) == 10 and prefix[4] == '-' and prefix[7] == '-':
+            dates.append(prefix)
+    return max(dates) if dates else None
+
+
+def print_freshness_warning(db, signal_dir: Path | None = None):
+    """Warn when quant.db lags behind generated signal JSON artifacts."""
+    db_signal_date = _max_table_date(db, 'signals')
+    latest_json_date = _latest_signal_json_date(signal_dir)
+    if db_signal_date and latest_json_date and db_signal_date < latest_json_date:
+        pos_date = _max_table_date(db, 'positions') or 'N/A'
+        trade_date = _max_table_date(db, 'trades') or 'N/A'
+        print(
+            '[WARN] quant.db 数据落后: '
+            f'signals最新={db_signal_date}, positions最新={pos_date}, '
+            f'trades最新={trade_date}, 最新signal JSON={latest_json_date}'
+        )
+        print(
+            '[WARN] 当前交易/日报状态请以 Futu 查询、paper_trading/signals/ '
+            '和 reports/ 为准；quant.db 仅作历史归档/研究查询。'
+        )
+        print()
 
 
 def cmd_stats(db):
@@ -133,6 +181,10 @@ def cmd_sql(db, sql):
 
 def main():
     parser = argparse.ArgumentParser(description='QuantDB 查询工具')
+    parser.add_argument('--db-path', type=str, default=None,
+                        help='QuantDB 路径（默认 E:\\quant\\quant.db）')
+    parser.add_argument('--signals-dir', type=str, default=None,
+                        help='signal JSON 目录（默认 paper_trading/signals）')
     sub = parser.add_subparsers(dest='command')
     
     # stats
@@ -176,9 +228,12 @@ def main():
         parser.print_help()
         return
     
-    db = QuantDB()
+    db = QuantDB(args.db_path)
+    signal_dir = Path(args.signals_dir) if args.signals_dir else None
     
     try:
+        print_freshness_warning(db, signal_dir)
+
         if args.command == 'stats':
             cmd_stats(db)
         elif args.command == 'signals':
