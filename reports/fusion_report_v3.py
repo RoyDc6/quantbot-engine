@@ -260,8 +260,8 @@ def _build_full_matrix(signals, prev_signals):
 
 > conf_v² / Δconf 为 shadow 指标，仅用于观察置信度 v2，不参与 Gate、不影响仓位、不替换 live 置信度。
 
-| # | 标的 | 现价 | RSI日 | RSI周 | 信号 | 融合分 | 置信度 | conf_v² | Δconf | 三因子观点 | XMM分 | VP分 | LLM分 | 权重 | 仓位 | 变动 | 根因 |
-|---|------|------|-------|-------|------|--------|--------|---------|-------|------------|-------|------|-------|------|------|------|------|
+| # | 标的 | 信号价 | RSI日 | RSI周 | 信号 | 融合分 | 置信度 | conf_v² | Δconf | 三因子观点 | XMM分 | VP分 | LLM分 | 权重 | 目标仓位 | 有效仓位 | 变动 | 根因 |
+|---|------|--------|-------|-------|------|--------|--------|---------|-------|------------|-------|------|-------|------|----------|----------|------|------|
 """
 
     sorted_signals = sorted(signals, key=lambda x: x.get('fusion_score', 0), reverse=True)
@@ -305,7 +305,7 @@ def _build_full_matrix(signals, prev_signals):
                 delta_str += f" {prev_level}→{level}"
 
         # 根因分析
-        root_cause = _extract_root_cause(sig)
+        root_cause = _safe_cell_text(_extract_root_cause(sig), 80)
         factor_view = _factor_view_summary(sig)
 
         rsi_d_icon = _rsi_color(rsi_d)
@@ -313,8 +313,9 @@ def _build_full_matrix(signals, prev_signals):
 
         conf_v2_str = f'{conf_v2:.0%}' if conf_v2 >= 0 else 'N/A'
         delta_conf_str = f'{delta_conf:+.0%}' if conf_v2 >= 0 else ''
+        effective_pos = _effective_position_cell(sig)
 
-        s += f"| {i} | {display_name} | {close:.2f} | {rsi_d_icon}{rsi_d:.0f} | {rsi_w_icon}{rsi_w:.0f} | {icon}**{level}** | **{score:+.1f}** | {conf:.0%} | {conf_v2_str} | {delta_conf_str} | {factor_view} | {xmm_raw:+.0f} | {vp_raw:+.0f} | {llm_raw:+.0f} | {weight_str} | {target_pos:.0%} | {delta_str} | {root_cause} |\n"
+        s += f"| {i} | {display_name} | {close:.2f} | {rsi_d_icon}{rsi_d:.0f} | {rsi_w_icon}{rsi_w:.0f} | {icon}**{level}** | **{score:+.1f}** | {conf:.0%} | {conf_v2_str} | {delta_conf_str} | {factor_view} | {xmm_raw:+.0f} | {vp_raw:+.0f} | {llm_raw:+.0f} | {weight_str} | {target_pos:.0%} | {effective_pos} | {delta_str} | {root_cause} |\n"
 
     s += "\n"
     return s
@@ -349,7 +350,11 @@ def _build_factor_view_section(signals):
         gate = '通过' if sig.get('gate_approved', True) else '拦截'
         gate_reasons = sig.get('gate_reasons', [])
         if gate_reasons:
-            gate += f"<br><sub>{_safe_cell_text(gate_reasons[0], 35)}</sub>"
+            reason_lines = [
+                f"<sub>{_safe_cell_text(reason, 35)}</sub>"
+                for reason in gate_reasons
+            ]
+            gate += '<br>' + '<br>'.join(reason_lines)
 
         s += (
             f"| {display_name} | {xmm_view} | {vp_view} | {llm_view} | {consensus} | "
@@ -529,7 +534,8 @@ def _build_risk_dashboard(positions, signals):
 
     if positions:
         s += "### 持仓状态\n\n"
-        s += "| 标的 | 股数 | 成本价 | 现价 | PnL% | 信号 | 风控状态 |\n"
+        s += "> 账户现价来自 Futu 持仓查询；全量矩阵中的信号价来自信号扫描行情。\n\n"
+        s += "| 标的 | 股数 | 成本价 | 账户现价 | PnL% | 信号 | 风控状态 |\n"
         s += "|------|------|--------|------|------|------|----------|\n"
         sig_map = {s['symbol']: s for s in signals}
         for p in positions:
@@ -601,9 +607,11 @@ def _build_strategy_notes(signals, market_state, market):
                 else:
                     vp_llm_signs.append('mixed')
             if vp_llm_signs.count('both_bull') > len(vp_llm_signs) / 2:
-                observations.append(f"{len(reduced_xmm_zero)}/{len(reduced)} REDUCED 由 XMM=0 导致 → VP 和 LLM 偏多但被 XMM 拉低融合分至 [10,30) 区间")
+                observations.append(f"{len(reduced_xmm_zero)}/{len(reduced)} REDUCED：VP/LLM 偏多但 XMM 中性未确认趋势，降级为 REDUCED")
+            elif vp_llm_signs.count('both_bear') > len(vp_llm_signs) / 2:
+                observations.append(f"{len(reduced_xmm_zero)}/{len(reduced)} REDUCED：VP/LLM 偏空驱动，XMM 中性未确认趋势，未触发 SELL 阈值 (-30)")
             else:
-                observations.append(f"{len(reduced_xmm_zero)}/{len(reduced)} REDUCED 由 XMM=0 导致 → VP/LLM 偏空，融合分为负但未达 SELL 阈值 (-30)")
+                observations.append(f"{len(reduced_xmm_zero)}/{len(reduced)} REDUCED：因子分歧且 XMM 中性，降级观察")
 
     # 市场状态影响
     state_limit = MARKET_STATE_LIMITS.get(market_state, 0.40)
@@ -633,6 +641,16 @@ def _build_strategy_notes(signals, market_state, market):
 # ═══════════════════════════════════════════════════════════════════
 # 辅助函数
 # ═══════════════════════════════════════════════════════════════════
+
+def _effective_position_cell(sig: dict) -> str:
+    """Show executable position after HardGate, without hiding raw target."""
+    target_pos = sig.get('target_position', 0) or 0
+    if sig.get('gate_approved', True):
+        return f'{target_pos:.0%}'
+    if target_pos:
+        return '0%<br><sub>Gate拦截</sub>'
+    return '0%'
+
 
 def _xmm_view(sig: dict) -> str:
     """XMM 独立观点。"""
