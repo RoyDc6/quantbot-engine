@@ -94,13 +94,15 @@ class LLMBiasModel:
                 raise ValueError(f'EventDetector 返回非 dict: {type(event_result).__name__}')
 
             sentiment_score = float(event_result.get('sentiment_score', 0.0))
-            sentiment_confidence = float(event_result.get('confidence', 0.0))
+            sentiment_confidence = MarketEventDetector._normalize_confidence(
+                event_result.get('confidence', 0.0)
+            )
             event_summary = str(event_result.get('event_summary', ''))
             event_type = str(event_result.get('event_type', 'none'))
+            signal_warnings = list(event_result.get('warnings') or [])
 
             # 数值越界钳制
             sentiment_score = max(-100.0, min(100.0, sentiment_score))
-            sentiment_confidence = max(0.0, min(1.0, sentiment_confidence))
 
             # 偏向状态映射
             if sentiment_score > 15:
@@ -125,7 +127,9 @@ class LLMBiasModel:
                 regime=market_state,
                 source='LLMBiasModel',
                 signal_level=state,                 # BULL/BEAR/NEUTRAL
-                warnings=[] if abs(sentiment_score) < 80 else [f'极端偏向: {state}({sentiment_score:.0f})'],
+                warnings=signal_warnings + (
+                    [] if abs(sentiment_score) < 80 else [f'极端偏向: {state}({sentiment_score:.0f})']
+                ),
             )
 
             logger.info(

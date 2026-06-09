@@ -183,6 +183,7 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
                 ticker=sym,
                 market_state=market_state,
                 vix_data=vix_map,
+                force_llm=(market == 'US'),
             )
             sig = _fc_result_to_signal(result, market)
             signals.append(sig)

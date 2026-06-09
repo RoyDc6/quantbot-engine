@@ -9,8 +9,8 @@ MarketEventDetector — LLM 驱动的市场情绪/事件检测器
 3. 失败安全: LLM 调用失败 → score=0，不影响现有逻辑
 
 约束:
-- 每个标的同一天最多 1 次 LLM 调用（带缓存）
-- Token 控制: prompt < 500 tokens, max_tokens=200
+- 每个标的同一天复用新鲜 LLM 缓存；美股缓存小时级过期，避免开盘扫描复用旧情绪
+- Token 控制: prompt < 500 tokens, max_tokens=400
 - 模型: meta/llama-4-maverick-17b-128e-instruct (快速 2-3s)
 """
 
@@ -37,6 +37,11 @@ BASE = PROJECT_ROOT
 CACHE_DIR = BASE / 'market_state' / 'event_cache'
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
+DEFAULT_CACHE_TTL_HOURS = 24
+MARKET_CACHE_TTL_HOURS = {
+    'US': 2,       # US 盘前/开盘扫描必须刷新小时级情绪，避免复用数小时前缓存
+}
+
 
 class MarketEventDetector:
     """
@@ -48,25 +53,70 @@ class MarketEventDetector:
     - 输出经过 FusionEngine/HardGate 纯规则后才到执行层
     """
 
-    def __init__(self, model=None):
+    def __init__(self, model=None, cache_ttl_hours=None, market_cache_ttl_hours=None):
         self.model = model or config.LLM_MODEL
         self._cache = {}  # {symbol+date: result}
+        self.cache_ttl_hours = cache_ttl_hours or DEFAULT_CACHE_TTL_HOURS
+        self.market_cache_ttl_hours = {
+            **MARKET_CACHE_TTL_HOURS,
+            **(market_cache_ttl_hours or {}),
+        }
 
     def _cache_key(self, symbol, date):
         return f'{symbol}_{date}'
 
-    def _load_cache(self, symbol, date):
-        """从磁盘缓存加载"""
+    @staticmethod
+    def _symbol_market(symbol):
+        text = str(symbol or '').upper()
+        if text.startswith('BATCH_'):
+            text = text[6:]
+        if text.endswith('.US'):
+            return 'US'
+        if text.endswith('.HK'):
+            return 'HK'
+        if text.endswith('.USDT'):
+            return 'CRYPTO'
+        return 'DEFAULT'
+
+    def _cache_ttl_hours(self, symbol):
+        market = self._symbol_market(symbol)
+        return self.market_cache_ttl_hours.get(market, self.cache_ttl_hours)
+
+    @staticmethod
+    def _cache_age_hours(result, now=None):
+        if not isinstance(result, dict):
+            return None
+        timestamp = result.get('timestamp')
+        if not timestamp:
+            return None
+        try:
+            ts = datetime.fromisoformat(str(timestamp))
+        except (TypeError, ValueError):
+            return None
+        return ((now or datetime.now()) - ts).total_seconds() / 3600
+
+    def _cache_is_fresh(self, symbol, result, now=None):
+        age_hours = self._cache_age_hours(result, now=now)
+        if age_hours is None:
+            return False
+        return age_hours <= self._cache_ttl_hours(symbol)
+
+    def _load_cache(self, symbol, date, allow_stale=False):
+        """从磁盘缓存加载；默认只返回仍在 TTL 内的新鲜缓存。"""
         key = self._cache_key(symbol, date)
         if key in self._cache:
-            return self._cache[key]
+            result = self._cache[key]
+            if allow_stale or self._cache_is_fresh(symbol, result):
+                return result
+            self._cache.pop(key, None)
         cache_file = CACHE_DIR / f'{key}.json'
         if cache_file.exists():
             try:
                 with open(cache_file, encoding='utf-8') as f:
                     result = json.load(f)
-                self._cache[key] = result
-                return result
+                if allow_stale or self._cache_is_fresh(symbol, result):
+                    self._cache[key] = result
+                    return result
             except:
                 pass
         return None
@@ -215,6 +265,26 @@ class MarketEventDetector:
             return None, raw_text
         return MarketEventDetector._parse_json(raw_text), raw_text
 
+    @staticmethod
+    def _normalize_confidence(value, default=0.0):
+        try:
+            confidence = float(value)
+        except (TypeError, ValueError):
+            confidence = float(default)
+        if confidence > 1:
+            confidence = confidence / 100.0
+        return max(0.0, min(1.0, confidence))
+
+    @staticmethod
+    def _sentiment_parse_status(parsed):
+        if not isinstance(parsed, dict):
+            return 'ERROR', ['LLM JSON 解析失败']
+        required = ('sentiment_score', 'event_type', 'summary', 'confidence')
+        missing = [key for key in required if parsed.get(key) in (None, '')]
+        if missing:
+            return 'PARTIAL', [f'LLM解析不完整: 缺少 {",".join(missing)}']
+        return 'OK', []
+
     def analyze_sentiment(self, symbol: str, price_data: dict,
                           recent_signals: list = None,
                           market_state: str = 'CRAB',
@@ -252,6 +322,8 @@ class MarketEventDetector:
             'event_summary': 'LLM 检测未执行',
             'confidence': 0.0,
             'llm_raw': '',
+            'parse_status': 'SKIPPED',
+            'warnings': [],
             'timestamp': datetime.now().isoformat(),
         }
 
@@ -298,7 +370,7 @@ Output format MUST be valid JSON only (no markdown blocks, no extra text):
             reply = nvidia_llm.chat(
                 prompt,
                 model=self.model,
-                max_tokens=200,
+                max_tokens=400,
                 temperature=0.5
             )
             elapsed = time.time() - t0
@@ -312,19 +384,24 @@ Output format MUST be valid JSON only (no markdown blocks, no extra text):
                 return default_result
 
             if parsed and isinstance(parsed, dict):
+                parse_status, parse_warnings = self._sentiment_parse_status(parsed)
+                event_summary = parsed.get('summary', '')
+                if parse_status == 'PARTIAL' and not event_summary:
+                    event_summary = 'LLM 解析不完整: summary 为空'
                 result = {
                     'sentiment_score': float(parsed.get('sentiment_score', 0)),
                     'event_type': parsed.get('event_type', 'none'),
-                    'event_summary': parsed.get('summary', ''),
-                    'confidence': float(parsed.get('confidence', 0.5)),
+                    'event_summary': event_summary,
+                    'confidence': self._normalize_confidence(parsed.get('confidence', 0.5)),
                     'llm_raw': raw_text[:500],
                     'llm_model': self.model,
                     'llm_latency_ms': int(elapsed * 1000),
+                    'parse_status': parse_status,
+                    'warnings': parse_warnings,
                     'timestamp': datetime.now().isoformat(),
                 }
                 # 限制范围
                 result['sentiment_score'] = max(-100, min(100, result['sentiment_score']))
-                result['confidence'] = max(0, min(1, result['confidence']))
 
                 self._save_cache(symbol, today, result)
                 return result
@@ -478,18 +555,23 @@ CSV输入格式: symbol,market_state,close,ret_5d(近5日涨跌%),rsi14,vol_rati
                             break
                     if mapped_key:
                         item = parsed[mapped_key]
+                        parse_status, parse_warnings = self._sentiment_parse_status(item)
+                        event_summary = item.get('summary', '')
+                        if parse_status == 'PARTIAL' and not event_summary:
+                            event_summary = 'LLM 解析不完整: summary 为空'
                         result = {
                             'sentiment_score': float(item.get('sentiment_score', 0)),
                             'event_type': item.get('event_type', 'none'),
-                            'event_summary': item.get('summary', ''),
-                            'confidence': float(item.get('confidence', 0.5)),
+                            'event_summary': event_summary,
+                            'confidence': self._normalize_confidence(item.get('confidence', 0.5)),
                             'llm_raw': raw_text[:500],
                             'llm_model': model,
                             'llm_latency_ms': int(elapsed * 1000),
+                            'parse_status': parse_status,
+                            'warnings': parse_warnings,
                             'timestamp': datetime.now().isoformat(),
                         }
                         result['sentiment_score'] = max(-100, min(100, result['sentiment_score']))
-                        result['confidence'] = max(0, min(1, result['confidence']))
                         self._save_cache(f'BATCH_{sym}', today, result)
                         all_results[sym] = result
                     else:
@@ -517,6 +599,8 @@ CSV输入格式: symbol,market_state,close,ret_5d(近5日涨跌%),rsi14,vol_rati
                             'sentiment_score': 0.0, 'event_type': 'none',
                             'event_summary': f'批量+单只兜底均失败: {str(e)[:50]}',
                             'confidence': 0.0, 'llm_raw': str(e)[:200],
+                            'parse_status': 'ERROR',
+                            'warnings': [f'LLM批量解析失败: {str(e)[:60]}'],
                             'timestamp': datetime.now().isoformat(),
                         }
                     time.sleep(6.7)  # 9 req/min 硬限流
