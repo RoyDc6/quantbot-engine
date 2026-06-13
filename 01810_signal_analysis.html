@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01810.HK 小米 REDUCED 信号拆解</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #f7f7f5;
+    color: #222;
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+  }
+  .container { max-width: 720px; width: 100%; }
+
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    border: 0.5px solid #e5e5e5;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+
+  .header-card {
+    background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
+    border: none;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .header-card h1 { color: #fff; font-size: 18px; font-weight: 500; }
+  .header-card .tag {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .metric-card {
+    background: #f5f5f4;
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+  .metric-card .label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .metric-card .value { font-size: 22px; font-weight: 500; }
+
+  .section-title {
+    font-size: 14px; font-weight: 500; color: #333;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 0.5px solid #e5e5e5;
+  }
+
+  .factor-row {
+    display: flex; align-items: center;
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    border: 0.5px solid #e5e5e5;
+  }
+  .factor-row.vp-highlight {
+    background: #fcebeb;
+    border-color: #f7c1c1;
+  }
+  .factor-row .factor-name { width: 80px; font-weight: 500; font-size: 14px; }
+  .factor-row .factor-name.vp { color: #991b1b; }
+  .factor-row .weight { width: 70px; font-size: 12px; color: #888; }
+  .factor-row .weight.vp { color: #991b1b; }
+  .factor-row .bar-track {
+    flex: 1; height: 28px;
+    background: #f1efef;
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+    margin: 0 12px;
+  }
+  .factor-row .bar-fill {
+    height: 100%; border-radius: 6px;
+    transition: width 0.5s;
+  }
+  .factor-row .bar-fill.vp { background: #991b1b; }
+  .factor-row .bar-fill.llm { background: #b4b2a9; }
+  .factor-row .bar-label {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    font-size: 11px; color: #fff; font-weight: 500;
+    white-space: nowrap;
+  }
+  .factor-row .scores {
+    display: flex; gap: 16px; font-size: 13px; width: 140px;
+  }
+  .factor-row .scores .original { color: #666; }
+  .factor-row .scores .weighted { font-weight: 500; }
+  .factor-row .scores .weighted.vp { color: #991b1b; }
+  .factor-row .pct { font-size: 12px; width: 40px; text-align: right; }
+  .factor-row .pct.vp { color: #991b1b; font-weight: 500; }
+
+  .vp-section { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .vp-price-ladder {
+    background: #f5f5f4;
+    border-radius: 10px;
+    padding: 16px;
+    position: relative;
+    min-height: 120px;
+  }
+  .vp-price-ladder .title { font-size: 12px; color: #888; text-align: center; margin-bottom: 12px; }
+
+  .ladder {
+    position: relative;
+    height: 80px;
+    margin: 0 0 0 50px;
+    border-left: 1px solid #d3d1c7;
+  }
+  .ladder .tick {
+    position: absolute; left: -6px; width: 12px; height: 0.5px; background: #b4b2a9;
+  }
+  .ladder .tick-label {
+    position: absolute; left: -44px; font-size: 11px; color: #888;
+    white-space: nowrap; text-align: right;
+  }
+  .ladder .poc-line {
+    position: absolute; left: -50px; width: calc(100% + 50px);
+    height: 2px; background: #378add;
+    transform: translateY(-1px);
+  }
+  .ladder .poc-label {
+    position: absolute; left: -50px; transform: translateY(-50%);
+    font-size: 11px; color: #378add; font-weight: 500;
+    text-align: right; width: 44px;
+  }
+  .ladder .current-price {
+    position: absolute; left: -6px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .ladder .current-dot {
+    width: 10px; height: 10px; border-radius: 50%; background: #991b1b;
+    flex-shrink: 0;
+  }
+  .ladder .current-label {
+    font-size: 11px; color: #991b1b; font-weight: 500; white-space: nowrap;
+  }
+
+  .insights-card {
+    background: #fcebeb;
+    border-radius: 10px;
+    padding: 16px;
+    border: 0.5px solid #f7c1c1;
+  }
+  .insights-card .title2 {
+    font-size: 12px; color: #991b1b; font-weight: 500;
+    margin-bottom: 8px; text-align: center;
+  }
+  .insights-card ul { list-style: none; }
+  .insights-card ul li {
+    font-size: 12px; color: #555;
+    padding: 3px 0;
+    position: relative;
+    padding-left: 12px;
+  }
+  .insights-card ul li::before { content: '•'; position: absolute; left: 0; color: #991b1b; }
+  .insights-card .conclusion {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 0.5px solid #f7c1c1;
+    font-size: 12px; color: #991b1b; font-weight: 500;
+  }
+
+  .timeline-card { padding: 16px; }
+  .timeline {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .timeline-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; padding: 4px 0;
+  }
+  .timeline-item .date { width: 50px; color: #888; flex-shrink: 0; }
+  .timeline-item .price { width: 48px; font-weight: 500; flex-shrink: 0; }
+  .timeline-item .signal {
+    width: 100px; padding: 2px 6px; border-radius: 4px;
+    font-size: 11px; text-align: center; flex-shrink: 0;
+  }
+  .timeline-item .signal.pos { background: #eaf3de; color: #3b6d11; }
+  .timeline-item .signal.neg { background: #fcebeb; color: #991b1b; }
+  .timeline-item .signal.mid { background: #f5f5f4; color: #888; }
+  .timeline-item .note { color: #888; font-size: 11px; }
+
+  .footer { text-align: center; font-size: 11px; color: #b4b2a9; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="card header-card">
+    <h1>01810.HK 小米集团 REDUCED 信号拆解</h1>
+    <span class="tag">$27.40 | conf=53%</span>
+  </div>
+
+  <!-- Metrics -->
+  <div class="metrics">
+    <div class="metric-card">
+      <div class="label">融合分</div>
+      <div class="value" style="color:#991b1b">-21.5</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">RSI 日 / 周</div>
+      <div class="value" style="color:#991b1b">32 / 26</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">VP POC</div>
+      <div class="value" style="color:#854f0b">$32.1</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">市场状态</div>
+      <div class="value" style="color:#854f0b">CRAB</div>
+    </div>
+  </div>
+
+  <!-- Factor Decomposition -->
+  <div class="card">
+    <div class="section-title">三因子加权分解</div>
+
+    <div class="factor-row">
+      <div class="factor-name">XMM 因子</div>
+      <div class="weight">60% 权重</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:0%;background:#d3d1c7;"></div>
+        <div class="bar-label" style="color:#666;">观望</div>
+      </div>
+      <div class="scores">
+        <span class="original">原始 +0</span>
+        <span class="weighted" style="color:#666;">→ +0.0</span>
+      </div>
+      <div class="pct" style="color:#888;">0%</div>
+    </div>
+
+    <div class="factor-row vp-highlight">
+      <div class="factor-name vp">VP 因子 🛑</div>
+      <div class="weight vp">25% 权重</div>
+      <div class="bar-track" style="background:#e5e5e5;">
+        <div class="bar-fill vp" style="width:90%;"></div>
+        <div class="bar-label">below_box</div>
+      </div>
+      <div class="scores">
+        <span class="original" style="color:#991b1b;">原始 -80</span>
+        <span class="weighted vp">→ -20.0</span>
+      </div>
+      <div class="pct vp">93%</div>
+    </div>
+
+    <div class="factor-row">
+      <div class="factor-name">LLM 因子</div>
+      <div class="weight">15% 权重</div>
+      <div class="bar-track">
+        <div class="bar-fill llm" style="width:10%;"></div>
+      </div>
+      <div class="scores">
+        <span class="original">原始 -10</span>
+        <span class="weighted" style="color:#666;">→ -1.5</span>
+      </div>
+      <div class="pct" style="color:#888;">7%</div>
+    </div>
+  </div>
+
+  <!-- VP Deep Dive -->
+  <div class="card">
+    <div class="section-title">VP 箱体破位深度分析</div>
+    <div class="vp-section">
+      <div class="vp-price-ladder">
+        <div class="title">价格 vs 筹码箱体结构</div>
+        <div class="ladder">
+          <div class="tick" style="top:0;"></div>
+          <div class="tick-label" style="top:-6px;">$33</div>
+          <div class="poc-line" style="top:36%;"></div>
+          <div class="poc-label" style="top:36%;">POC $32.1</div>
+          <div class="tick" style="top:62%;"></div>
+          <div class="tick-label" style="top:56px;">下轨 ~$30</div>
+          <div class="current-price" style="top:86%;">
+            <div class="current-dot"></div>
+            <span class="current-label">$27.4 &larr; 当前位置</span>
+          </div>
+        </div>
+      </div>
+      <div class="insights-card">
+        <div class="title2">关键发现</div>
+        <ul>
+          <li>VP 贡献 93% 的压分，是独一份的 below_box</li>
+          <li>其他 6 只港股 VP 均为 inside_box(-20)</li>
+          <li>XMM 全市场中性(0)，LLM 轻微偏空(-10)</li>
+        </ul>
+        <div class="conclusion">结论：筹码破位压分，Gate 拦截 53% &lt; 0.60</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="card">
+    <div class="section-title">近一周价格 &amp; 事件演进</div>
+    <div class="timeline">
+      <div class="timeline-item">
+        <span class="date">06-01</span>
+        <span class="price" style="color:#3b6d11;">$33.x</span>
+        <span class="signal pos">reversal (+20)</span>
+        <span class="note">超跌反弹预期</span>
+      </div>
+      <div class="timeline-item">
+        <span class="date">06-04</span>
+        <span class="price" style="color:#3b6d11;">$31.x</span>
+        <span class="signal pos">reversal (+10)</span>
+        <span class="note">持续超卖</span>
+      </div>
+      <div class="timeline-item">
+        <span class="date">06-05</span>
+        <span class="price" style="color:#854f0b;">$30.x</span>
+        <span class="signal mid">转向 (-20)</span>
+        <span class="note">跌破箱体下轨</span>
+      </div>
+      <div class="timeline-item">
+        <span class="date">06-06</span>
+        <span class="price" style="color:#991b1b;">$29.x</span>
+        <span class="signal neg">none (-10)</span>
+        <span class="note">连跌 3 天</span>
+      </div>
+      <div class="timeline-item">
+        <span class="date">06-08</span>
+        <span class="price" style="color:#991b1b;">$27.4</span>
+        <span class="signal neg">none (-10)</span>
+        <span class="note">连跌 4 天 · 今日</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">QuantBot FusionController v3.0 | 2026-06-08 14:12 扫描</div>
+</div>
+</body>
+</html>

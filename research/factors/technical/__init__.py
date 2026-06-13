@@ -13,3 +13,4 @@ from .phase3 import (
     VolatilityOfVolatility, EfficiencyRatio, PriceAcceleration,
     GapFactor, VolumePriceCorrelation,
 )
+from .xmm_30m import XMM30mFactor

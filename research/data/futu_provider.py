@@ -79,12 +79,12 @@ class FutuProvider(UnifiedDataProvider):
         ctx = OpenQuoteContext(host=self.host, port=self.port)
         try:
             # 1. 订阅
-            ret, _ = ctx.subscribe([futu_code], [SubType.K_DAY], subscribe_push=False)
+            ret, _ = ctx.subscribe([futu_code], [getattr(SubType, kl_type)], subscribe_push=False)
             if ret != RET_OK:
                 raise RuntimeError(f"Futu subscribe 失败: {futu_code}")
 
             # 2. 获取 K 线（get_cur_kline 返回从旧到新排列）
-            ret, data = ctx.get_cur_kline(futu_code, count, KLType.K_DAY, AuType.QFQ)
+            ret, data = ctx.get_cur_kline(futu_code, count, getattr(KLType, kl_type), AuType.QFQ)
             if ret != RET_OK:
                 raise RuntimeError(f"Futu get_cur_kline 失败: {futu_code}: {data}")
 
@@ -142,7 +142,9 @@ class FutuProvider(UnifiedDataProvider):
             ctx = OpenQuoteContext(host=self.host, port=self.port)
             try:
                 # 批量订阅
-                ret, _ = ctx.subscribe(futu_codes, [SubType.K_DAY], subscribe_push=False)
+                kl_subtype = getattr(SubType, self.TIMEFRAME_MAP.get(timeframe, "K_DAY"))
+                kl_type = getattr(KLType, self.TIMEFRAME_MAP.get(timeframe, "K_DAY"))
+                ret, _ = ctx.subscribe(futu_codes, [kl_subtype], subscribe_push=False)
                 if ret != RET_OK:
                     print(f"[WARN] Futu 批量订阅失败 ({market}): {ret}")
                     # 逐个尝试
@@ -156,7 +158,7 @@ class FutuProvider(UnifiedDataProvider):
                 # 逐个获取
                 for sym, fc in zip(syms, futu_codes):
                     try:
-                        ret, data = ctx.get_cur_kline(fc, count, KLType.K_DAY, AuType.QFQ)
+                        ret, data = ctx.get_cur_kline(fc, count, kl_type, AuType.QFQ)
                         if ret != RET_OK:
                             print(f"[WARN] {sym}: get_cur_kline 失败: {data}")
                             continue

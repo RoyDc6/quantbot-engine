@@ -26,6 +26,7 @@ from .technical import (
     VolumeWeightedMomentum, CloseLocationValue, VolatilityRegime,
     VolatilityOfVolatility, EfficiencyRatio, PriceAcceleration,
     GapFactor, VolumePriceCorrelation,
+    XMM30mFactor,
 )
 from .llm import (
     LLMRegimeFactor, LLMRegimeConfidenceFactor,
@@ -55,6 +56,8 @@ _BUILTIN_FACTORS = [
     VolumeWeightedMomentum, CloseLocationValue, VolatilityRegime,
     VolatilityOfVolatility, EfficiencyRatio, PriceAcceleration,
     GapFactor, VolumePriceCorrelation,
+    # XMM research factor
+    XMM30mFactor,
     # LLM 因子 (6)
     LLMRegimeFactor, LLMRegimeConfidenceFactor,
     LLMSentimentFactor, LLMDivergenceFactor,

@@ -38,6 +38,8 @@ DEFAULT_SYMBOLS: List[SymbolInfo] = [
     SymbolInfo("00941", "HK", "中国移动", "stock", "HK.00941"),
     SymbolInfo("00388", "HK", "香港交易所", "stock", "HK.00388"),
     SymbolInfo("01024", "HK", "快手", "stock", "HK.01024"),
+    SymbolInfo("00981", "HK", "中芯国际", "stock", "HK.00981"),
+    SymbolInfo("02513", "HK", "智谱", "stock", "HK.02513"),
 
     # --- 美股 ---
     SymbolInfo("SPY", "US", "SPDR S&P 500 ETF", "etf", "US.SPY"),

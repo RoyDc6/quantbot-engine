@@ -41,6 +41,7 @@ from research.factors.technical.volatility import (
 from research.factors.technical.volume import (
     OBVFactor, VolumeRatioFactor, VPTFactor,
 )
+from research.factors.technical.xmm_30m import XMM30mFactor
 
 from research.models.evaluation import (
     calc_ic, calc_ic_series, calc_ic_decay, calc_sharpe,
@@ -467,6 +468,31 @@ class TestTrendStrengthFactor(unittest.TestCase):
         valid = result.dropna()
         if len(valid) > 10:
             self.assertGreater(valid.mean(), 0)
+
+
+class TestXMM30mFactor(unittest.TestCase):
+    """30m XMM research factor tests"""
+
+    def setUp(self):
+        self.factor = XMM30mFactor()
+        self.kd = make_sample_klinedata(180, market="US", tf="30m")
+
+    def test_meta(self):
+        meta = XMM30mFactor.meta()
+        self.assertEqual(meta.name, "xmm_30m")
+        self.assertIn("US", meta.markets)
+        self.assertIn("HK", meta.markets)
+        self.assertEqual(meta.frequencies, ["30m"])
+
+    def test_compute_returns_bounded_series(self):
+        result = self.factor.compute(self.kd, min_bars=100, lookback=120)
+        self.assertIsInstance(result, pd.Series)
+        self.assertEqual(len(result), len(self.kd.df))
+        self.assertTrue(result.dropna().between(-100, 100).all())
+
+    def test_validate_rejects_daily_data(self):
+        daily = make_sample_klinedata(180, market="US", tf="1d")
+        self.assertFalse(self.factor.validate(daily))
 
 
 class TestATRFactor(unittest.TestCase):
