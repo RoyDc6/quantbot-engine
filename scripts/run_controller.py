@@ -127,7 +127,9 @@ def cmd_status(fc: FusionController):
         icon = '✅' if info.get('available') else ('⚠️' if info.get('registered') else '❌')
         reg = '已注册' if info.get('registered') else '未注册'
         avail = '在线' if info.get('available') else '离线'
-        print(f'  {atype:<15}: {icon} {reg} | {avail}')
+        msg = info.get('message') or ''
+        suffix = f' | {msg}' if msg else ''
+        print(f'  {atype:<15}: {icon} {reg} | {avail}{suffix}')
     
     print()
     for comp, status in report['components'].items():

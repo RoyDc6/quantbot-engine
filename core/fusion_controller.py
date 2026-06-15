@@ -983,8 +983,8 @@ class FusionController:
     # ─── 状态报告 ────────────────────────────────────────────
     def status_report(self) -> dict:
         """系统状态报告。"""
-        # 从 AdapterFactory 获取适配器状态
-        adapters = AdapterFactory.status()
+        # 主动实例化并探测适配器，避免状态页把“未缓存”误报为离线。
+        adapters = AdapterFactory.status(probe=True, instantiate=True)
         return {
             'components': {
                 'universe': f'{self.universe.total_count} symbols',

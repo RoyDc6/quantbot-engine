@@ -139,17 +139,32 @@ class AdapterFactory:
     # ─── 全局状态 ────────────────────────────────────────────
 
     @classmethod
-    def status(cls) -> dict:
-        """所有适配器的状态报告。"""
+    def status(cls, probe: bool = False, instantiate: bool = False) -> dict:
+        """所有适配器的状态报告。
+
+        Args:
+            probe: True 时调用 test_connection() 做真实可用性探测。
+            instantiate: True 时先实例化已注册适配器，避免状态页只显示缓存。
+        """
         result = {}
         # 已注册的类型
         for atype in cls._registry:
+            if instantiate and atype not in cls._instances:
+                cls.get_adapter_by_type(atype)
             inst = cls._instances.get(atype)
-            available = inst.available if inst else False
+            message = ''
+            if probe and inst:
+                try:
+                    available, message = inst.test_connection()
+                except Exception as e:
+                    available, message = False, str(e)
+            else:
+                available = inst.available if inst else False
             result[atype] = {
                 'registered': True,
                 'instantiated': inst is not None,
                 'available': bool(available),
+                'message': message,
             }
         return result
 

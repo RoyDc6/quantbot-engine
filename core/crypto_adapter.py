@@ -9,9 +9,12 @@ core/crypto_adapter.py — QuantBot OKX Crypto 数据适配器
 符号格式: BTC.USDT → instId BTC-USDT
 """
 
+import json
 import subprocess
 import sys
 import re
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 from datetime import datetime, timezone
 from typing import Optional, Dict, List, Tuple
 from pathlib import Path
@@ -54,24 +57,16 @@ class CryptoAdapter(BaseAdapter):
         """
         self._cli = cli_path or 'okx'
         self._available = None  # 懒检测
+        self._cli_available = None
+        self._rest_base = 'https://www.okx.com'
 
     # ─── 核心接口 ────────────────────────────────────────────
 
     @property
     def available(self) -> bool:
-        """检测 okx CLI 是否可用。"""
+        """检测 okx CLI 或 OKX 公共 REST 行情是否可用。"""
         if self._available is None:
-            try:
-                # okx 是 PowerShell 包装命令（okx.ps1），需 shell=True
-                result = subprocess.run(
-                    f'{self._cli} market ticker BTC-USDT',
-                    capture_output=True, shell=True, text=True, timeout=10,
-                    encoding='utf-8', errors='replace',
-                )
-                stdout = result.stdout or ''
-                self._available = 'BTC-USDT' in stdout and 'last' in stdout
-            except Exception:
-                self._available = False
+            self._available = self._detect_cli_available() or self._rest_ticker('BTC-USDT') is not None
         return self._available
 
     def fetch_kline(self, symbol: str, count: int = 252,
@@ -87,12 +82,15 @@ class CryptoAdapter(BaseAdapter):
         Returns:
             pd.DataFrame | None: [date, open, high, low, close, volume]
         """
-        if not self.available:
-            return None
-
         inst_id = self._to_inst_id(symbol)
         if not inst_id:
             return None
+
+        if not self.available:
+            return None
+
+        if not self._detect_cli_available():
+            return self._fetch_kline_rest(inst_id, count=count, ktype=ktype)
 
         bar = KTYPE_MAP.get(ktype, '1D')
         limit = min(count, 300)
@@ -120,12 +118,15 @@ class CryptoAdapter(BaseAdapter):
 
     def fetch_quote(self, symbol: str) -> Optional[Dict]:
         """获取实时报价。"""
-        if not self.available:
-            return None
-
         inst_id = self._to_inst_id(symbol)
         if not inst_id:
             return None
+
+        if not self.available:
+            return None
+
+        if not self._detect_cli_available():
+            return self._rest_ticker(inst_id)
 
         try:
             cmd = f'{self._cli} market ticker {inst_id}'
@@ -140,6 +141,96 @@ class CryptoAdapter(BaseAdapter):
             return None
 
     # ─── 内部工具 ────────────────────────────────────────────
+
+    def test_connection(self) -> Tuple[bool, str]:
+        """测试 OKX 公共行情连接。"""
+        if self._detect_cli_available():
+            return True, 'OKX CLI 可用'
+        if self._rest_ticker('BTC-USDT') is not None:
+            return True, 'OKX REST 公共行情可用'
+        return False, 'OKX CLI 不可用，REST 公共行情不可达'
+
+    def _detect_cli_available(self) -> bool:
+        """检测 okx CLI 是否可用。"""
+        if self._cli_available is None:
+            try:
+                # okx 是 PowerShell 包装命令（okx.ps1），需 shell=True
+                result = subprocess.run(
+                    f'{self._cli} market ticker BTC-USDT',
+                    capture_output=True, shell=True, text=True, timeout=10,
+                    encoding='utf-8', errors='replace',
+                )
+                stdout = result.stdout or ''
+                self._cli_available = result.returncode == 0 and 'BTC-USDT' in stdout and 'last' in stdout
+            except Exception:
+                self._cli_available = False
+        return bool(self._cli_available)
+
+    def _fetch_kline_rest(self, inst_id: str, count: int = 252,
+                          ktype: str = 'K_DAY') -> Optional[pd.DataFrame]:
+        """通过 OKX 公共 REST 获取 K 线。"""
+        bar = KTYPE_MAP.get(ktype, '1D')
+        params = {'instId': inst_id, 'bar': bar, 'limit': min(count, 300)}
+        data = self._rest_get('/api/v5/market/candles', params)
+        rows = data.get('data') if data else None
+        if not rows:
+            return None
+
+        records = []
+        for row in rows:
+            try:
+                ts_ms = int(row[0])
+                dt = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc)
+                records.append({
+                    'date': dt.strftime('%Y-%m-%d'),
+                    'open': float(row[1]),
+                    'high': float(row[2]),
+                    'low': float(row[3]),
+                    'close': float(row[4]),
+                    'volume': float(row[5]),
+                })
+            except (ValueError, TypeError, IndexError):
+                continue
+
+        if not records:
+            return None
+        df = pd.DataFrame(records)
+        df = df.sort_values('date').drop_duplicates(subset=['date']).reset_index(drop=True)
+        df.attrs['source'] = 'OKX_REST'
+        return df
+
+    def _rest_ticker(self, inst_id: str) -> Optional[Dict]:
+        """通过 OKX 公共 REST 获取 ticker。"""
+        data = self._rest_get('/api/v5/market/ticker', {'instId': inst_id})
+        rows = data.get('data') if data else None
+        if not rows:
+            return None
+        row = rows[0]
+        try:
+            price = float(row.get('last') or 0)
+            return {
+                'price': price,
+                'open': float(row.get('open24h') or price),
+                'high': float(row.get('high24h') or price),
+                'low': float(row.get('low24h') or price),
+                'volume': float(row.get('vol24h') or 0),
+                'source': 'OKX_REST',
+            }
+        except (TypeError, ValueError):
+            return None
+
+    def _rest_get(self, path: str, params: Dict) -> Optional[Dict]:
+        """OKX 公共 REST GET，失败时返回 None。"""
+        url = f'{self._rest_base}{path}?{urlencode(params)}'
+        try:
+            req = Request(url, headers={'User-Agent': 'QuantBot/1.0'})
+            with urlopen(req, timeout=10) as resp:
+                payload = json.loads(resp.read().decode('utf-8'))
+            if payload.get('code') != '0':
+                return None
+            return payload
+        except Exception:
+            return None
 
     @staticmethod
     def _to_inst_id(symbol: str) -> Optional[str]:

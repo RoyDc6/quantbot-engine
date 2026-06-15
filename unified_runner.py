@@ -43,6 +43,7 @@ from core.position_manager import (
 )
 from core.order_executor import OrderExecutor
 from core.order_journal import OrderStatus
+from core.universe_manager import UniverseManager
 from core.utils import dict_json_safe, to_futu_code, to_standard_symbol
 
 import config
@@ -154,14 +155,19 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
         print(f'  Market State: {market_state}')
 
     # Step 2: 确定标的（统一转换为标准符号格式: 00700.HK / AAPL.US）
+    universe = UniverseManager()
     if market == 'HK':
-        targets = list(config.UNIVERSE_HK.keys())  # 已是标准格式: '00700.HK'
-        lot_sizes = {s: config.UNIVERSE_HK[s]['lot_size'] for s in config.UNIVERSE_HK}
+        targets = universe.get_symbols_by_market('HK') or list(config.UNIVERSE_HK.keys())
+        lot_sizes = {
+            s: universe.get_lot_size(s) if universe.contains(s)
+            else config.UNIVERSE_HK[s]['lot_size']
+            for s in targets
+        }
         mkt_label = '港股'
         take_profit_pct = config.TAKE_PROFIT_PCT_HK
     elif market == 'US':
-        targets = [to_standard_symbol(s) for s in config.UNIVERSE_US.keys()]  # 'US.AAPL' → 'AAPL.US'
-        lot_sizes = {to_standard_symbol(s): 1 for s in config.UNIVERSE_US}  # 美股无整手限制
+        targets = universe.get_symbols_by_market('US') or [to_standard_symbol(s) for s in config.UNIVERSE_US.keys()]
+        lot_sizes = {s: universe.get_lot_size(s) if universe.contains(s) else 1 for s in targets}
         mkt_label = '美股'
         take_profit_pct = config.TAKE_PROFIT_PCT_US
     else:

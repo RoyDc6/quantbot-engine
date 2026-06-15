@@ -7,6 +7,7 @@ order placement.
 
 import inspect
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -219,7 +220,8 @@ def test_query_result_require_fails_closed():
 
 def test_stop_cooldown_survives_cleanup_closed(tmp_path):
     risk = RiskManager(state_file=str(tmp_path / 'risk_state.json'))
-    risk.confirm_stop('HK.00700', '2026-06-05T10:00:00')
+    recent_stop = (datetime.now() - timedelta(days=1)).isoformat()
+    risk.confirm_stop('HK.00700', recent_stop)
     risk.entry_prices['HK.00700'] = 100
 
     risk.cleanup_closed(active_codes=set())
