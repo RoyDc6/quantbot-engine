@@ -16,7 +16,7 @@ QuantEngine 是一套完整的港股+美股量化交易系统，集成了传统�
 | 缠论分析 | 分型识别 / 笔划分 / 中枢 / 买卖点（港股Alpha最强 IC=0.34） |
 | 市场状态 | 多维度分类（VIX环境 / 趋势 / 动量 / 波动率 → BULL/BEAR/CRAB） |
 | LLM因子 | 因子工厂（RIC翻转修正），fractal_structure 最强因子 RIC=-0.45 |
-| 数据源 | Futu OpenD（主力） + TickFlow（回退） |
+| 数据源 | Futu OpenD（HK/US 日常运行链路唯一输入） |
 
 ## 目录结构
 
@@ -26,8 +26,8 @@ quant/
 │   ├── daily_runner.py         # 每日信号生成主脚本（港股+美股）
 │   ├── auto_trade.py           # 自动交易流程 v3.0（统一入口）
 │   ├── portfolio.json          # 当前持仓状态
-│   ├── signals/                # 每日信号记录 (JSON)
-│   └── reports/                # 周/月报告 (Markdown)
+│   ├── signals/                # 每日信号记录 (JSON，唯一结构化输出)
+│   └── reports/                # 周/月报告 (Markdown，JSON 的可读渲染)
 ├── fusion_framework/           # 融合引擎框架
 │   ├── fusion_engine.py        # 双系统融合引擎
 │   ├── signal_types.py         # 信号类型定义
@@ -72,19 +72,20 @@ pip install -r requirements.txt
 
 ### 3. 配置数据源
 
-#### Futu OpenD（主力数据源）
+#### Futu OpenD（唯一输入源）
 
 1. 下载并安装 [Futu OpenD](https://openapi.futunn.com/)
 2. 启动 OpenD，确保监听 `127.0.0.1:11111`
 3. 登录 Futu 账户（模拟账户即可）
 
-#### TickFlow（备用数据源）
+#### 运行事实源
 
-设置环境变量：
-```bash
-export TICKFLOW_API_KEY=your_api_key_here
-```
-如未设置，系统自动降级为免费层。
+HK/US 日常运行链路采用固定事实源边界：
+
+1. `Futu OpenD` 是唯一输入源，行情、账户和持仓状态均以 Futu 查询为准。
+2. `paper_trading/signals/YYYY-MM-DD_MARKET.json` 是唯一结构化输出。
+3. `reports/YYYY-MM-DD_market_v3.md` 是同批 JSON 结果的可读渲染。
+4. `quant.db` 仅作历史归档/研究查询，不参与当前交易状态判断。
 
 ### 4. 验证安装
 
@@ -120,7 +121,7 @@ python paper_trading/daily_runner.py
 
 ### 信号输出格式
 
-每日信号保存为 `paper_trading/signals/YYYY-MM-DD.json`，包含：
+每日信号保存为 `paper_trading/signals/YYYY-MM-DD_MARKET.json`，这是当前运行链路的唯一结构化输出，包含：
 - 每只标的的融合信号（fusion_level / fusion_score / confidence）
 - 技术指标（RSI日/周/月、MACD、缠论分型）
 - LLM 因子打分详情
@@ -229,7 +230,9 @@ python -m json.tool paper_trading/signals/$(date +%Y-%m-%d).json
 ### 重要原则
 
 - **止损不可删除** — 宁可跑输基准，不可错杀生存
-- **数据源不可重建** — `data_fetcher.py` 和 Futu API 配置是核心资产
+- **Futu 输入唯一** — HK/US 当前行情、账户、持仓只以 Futu 查询为准
+- **JSON 输出唯一** — `paper_trading/signals/` 是当前结构化输出；日报只是可读渲染
+- **quant.db 不判当前** — `quant.db` 仅作历史归档/研究查询
 - **纸交易优先** — 任何策略变更先在纸交易验证 3 个月
 - **信号 > 噪音** — 不追逐市场热点，只响应量化信号
 

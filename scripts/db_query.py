@@ -3,9 +3,10 @@
 scripts/db_query.py - QuantDB CLI 查询工具
 
 注意:
-  quant.db 是历史归档/研究查询库，不是当前交易状态源。
-  当前运行链路的最新信号/报告来自 paper_trading/signals/ 与 reports/，
-  当前持仓以 Futu 查询为准。
+  Futu 是 HK/US 日常运行链路的唯一输入源。
+  paper_trading/signals/ JSON 是唯一结构化输出。
+  reports/ 日报是 JSON 的可读渲染。
+  quant.db 是历史归档/研究查询库，不参与当前交易状态判断。
 
 用法:
   python scripts/db_query.py stats                  # 数据库统计
@@ -29,6 +30,20 @@ sys.path.insert(0, str(_ROOT))
 from core.paths import PROJECT_ROOT
 
 from core.quant_db import QuantDB
+
+
+CURRENT_STATE_NOTICE = (
+    '[INFO] 运行口径: Futu 是唯一输入；'
+    'paper_trading/signals/ JSON 是唯一结构化输出；'
+    'reports/ 是 JSON 的可读渲染；'
+    'quant.db 仅作历史归档/研究查询。'
+)
+
+
+def print_current_state_notice():
+    """Print the canonical runtime source-of-truth boundary."""
+    print(CURRENT_STATE_NOTICE)
+    print()
 
 
 def _max_table_date(db, table: str) -> str | None:
@@ -67,8 +82,9 @@ def print_freshness_warning(db, signal_dir: Path | None = None):
             f'trades最新={trade_date}, 最新signal JSON={latest_json_date}'
         )
         print(
-            '[WARN] 当前交易/日报状态请以 Futu 查询、paper_trading/signals/ '
-            '和 reports/ 为准；quant.db 仅作历史归档/研究查询。'
+            '[WARN] 当前交易状态以 Futu 查询为准；结构化输出以 '
+            'paper_trading/signals/ JSON 为准；reports/ 仅为可读渲染；'
+            'quant.db 不参与当前状态判断。'
         )
         print()
 
@@ -232,6 +248,7 @@ def main():
     signal_dir = Path(args.signals_dir) if args.signals_dir else None
     
     try:
+        print_current_state_notice()
         print_freshness_warning(db, signal_dir)
 
         if args.command == 'stats':

@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-scripts/migrate_to_sqlite.py - 从 JSON/CSV 文件迁移数据到 quant.db
+scripts/migrate_to_sqlite.py - 从 JSON/CSV 文件迁移历史数据到 quant.db
+
+注意:
+  这是历史归档/研究迁移工具。
+  当前 HK/US 日常运行口径为 Futu 输入 -> signal JSON 结构化输出 -> reports 日报渲染。
+  quant.db 不参与当前交易状态判断。
+
 用法:
   python scripts/migrate_to_sqlite.py          # 执行迁移
   python scripts/migrate_to_sqlite.py --dry-run # 预览模式（不写入）
@@ -21,7 +27,7 @@ from core.quant_db import QuantDB
 
 
 def migrate_signals(db: QuantDB, dry_run=False):
-    """迁移 paper_trading/signals/*.json → signals + market_states + trades + positions"""
+    """归档 paper_trading/signals/*.json → signals + market_states + trades + positions."""
     signals_dir = BASE / 'paper_trading' / 'signals'
     files = sorted(signals_dir.glob('*.json'))
     
@@ -148,7 +154,7 @@ def migrate_factor_ic(db: QuantDB, dry_run=False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='迁移量化数据到 SQLite')
+    parser = argparse.ArgumentParser(description='迁移历史量化数据到 SQLite 归档库')
     parser.add_argument('--dry-run', action='store_true', help='预览模式，不实际写入')
     args = parser.parse_args()
     
@@ -156,6 +162,7 @@ def main():
     mode = 'DRY-RUN' if dry_run else 'LIVE'
     
     print(f'═══ QuantDB 数据迁移 ({mode}) ═══')
+    print('口径: Futu 输入 -> signal JSON 结构化输出 -> reports 日报渲染；quant.db 仅作历史归档/研究查询。')
     print(f'数据库: {BASE / "quant.db"}')
     print()
     

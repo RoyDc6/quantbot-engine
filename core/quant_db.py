@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-core/quant_db.py - QuantBot 统一 SQLite 数据库模块
-替代散落的 CSV/JSON 文件，提供结构化存储和高效查询。
+core/quant_db.py - QuantBot 历史归档/研究 SQLite 数据库模块
+
+运行口径:
+    Futu 是 HK/US 日常运行链路的唯一输入源。
+    paper_trading/signals/ JSON 是唯一结构化输出。
+    reports/ 日报是 JSON 的可读渲染。
+    quant.db 仅作历史归档/研究查询，不参与当前交易状态判断。
 
 用法:
     from core.quant_db import QuantDB
@@ -26,7 +31,7 @@ DB_PATH = _DB_PATH
 
 
 class QuantDB:
-    """统一 SQLite 数据库封装。"""
+    """Historical SQLite helper; not the current runtime source of truth."""
 
     def __init__(self, db_path=None):
         self.db_path = Path(db_path) if db_path else DB_PATH
@@ -260,7 +265,7 @@ class QuantDB:
     # ═══════════════════════════════════════════════════════════
 
     def insert_signals(self, date: str, signals: List[Dict], market: str = 'HK'):
-        """批量写入每日信号。信号来自 daily_runner.py 的 JSON 输出。"""
+        """批量写入历史信号归档。当前结构化输出仍以每日 JSON 为准。"""
         c = self.conn.cursor()
         for s in signals:
             # 从 _decision_signal 提取 regime 信息

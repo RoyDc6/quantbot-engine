@@ -54,6 +54,10 @@ def test_db_query_warns_when_quantdb_lags_signal_json(tmp_path):
     )
 
     assert result.returncode == 0, result.stderr
+    assert "Futu 是唯一输入" in result.stdout
+    assert "JSON 是唯一结构化输出" in result.stdout
+    assert "quant.db 仅作历史归档/研究查询" in result.stdout
     assert "[WARN] quant.db 数据落后" in result.stdout
     assert "signals最新=2026-05-21" in result.stdout
     assert "最新signal JSON=2026-06-06" in result.stdout
+    assert "quant.db 不参与当前状态判断" in result.stdout
