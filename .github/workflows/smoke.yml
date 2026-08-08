@@ -36,7 +36,7 @@ jobs:
           fetch-depth: 0  # 需要历史记录做 range check
 
       - name: Setup Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
