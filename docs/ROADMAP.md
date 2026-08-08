@@ -9,14 +9,16 @@ QuantBot Engine's roadmap focuses on making safety-first quantitative infrastruc
 - deterministic fusion and hard-risk gates
 - structured signals, reports, journals, and reconciliation utilities
 - offline smoke and execution-safety tests
+- maintainer-controlled Codex review with strict, locally validated output
+- versioned public release notes and repository code ownership
 
 ## Near-term priorities
 
 1. **Reproducible onboarding** — smaller example configurations, synthetic/sample datasets, and clearer platform-neutral setup paths.
 2. **Adapter contracts** — documented interfaces for market data, research factors, and simulated brokers so contributors can add providers without changing the decision core.
 3. **Evaluation quality** — stronger walk-forward, leakage, freshness, and provenance checks for factor research.
-4. **Maintenance automation** — safer pull-request review, dependency updates, documentation checks, and regression-test generation.
-5. **Release discipline** — versioned community releases with changelogs, migration notes, and known limitations.
+4. **Maintenance automation** — expand the current safe Codex review, dependency updates, documentation checks, and regression-test generation.
+5. **Release discipline** — continue post-v0.1.0 community releases with changelogs, migration notes, and known limitations.
 6. **Contributor growth** — issue labels, scoped starter tasks, and ownership of well-defined modules.
 
 ## Good contribution areas

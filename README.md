@@ -1,6 +1,7 @@
 # QuantBot Engine
 
 [![Smoke & Safety](https://github.com/RoyDc6/quantbot-engine/actions/workflows/smoke.yml/badge.svg)](https://github.com/RoyDc6/quantbot-engine/actions/workflows/smoke.yml)
+[![Codex Maintainer Review](https://github.com/RoyDc6/quantbot-engine/actions/workflows/codex-review.yml/badge.svg)](https://github.com/RoyDc6/quantbot-engine/actions/workflows/codex-review.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 QuantBot Engine is a safety-first quantitative research and paper-trading engine for Hong Kong and U.S. equities. It combines market data adapters, technical and machine-learning factors, market-regime classification, LLM-assisted research signals, deterministic fusion rules, and structured audit outputs in one inspectable Python codebase.
@@ -102,6 +103,18 @@ python scripts/check_secrets.py
 
 These checks do not require market credentials or a broker connection.
 
+### Validate the Codex review contract
+
+The optional maintainer workflow has a dependency-free offline validator and a
+known-good fixture:
+
+```bash
+python scripts/validate_codex_review.py tests/fixtures/codex_review/valid_review.json
+```
+
+This command validates the structured output contract without making an API
+request.
+
 ### Inspect the runner
 
 ```bash
@@ -145,9 +158,25 @@ Every pull request should:
 3. include tests or a reproducible validation note;
 4. pass the smoke, safety, and repository-secret checks.
 
+## Codex-assisted maintenance
+
+The repository includes an optional pull-request review workflow built on the
+official `openai/codex-action`. It runs only when a maintainer-configured
+`OPENAI_API_KEY` GitHub Secret is available; otherwise it safely skips the model
+call. Reviews use trusted events, a read-only sandbox, a strict JSON schema, and
+a separate secret-free comment job.
+
+See [`AGENTS.md`](AGENTS.md) for repository-wide coding-agent boundaries and
+[`docs/CODEX_MAINTENANCE.md`](docs/CODEX_MAINTENANCE.md) for setup, security,
+validation, and evaluation details. Codex output is advisory and cannot approve
+changes or access any execution path.
+
 ## Project status
 
 QuantBot Engine is actively maintained as an experimental research and paper-trading project. Interfaces may evolve while the project improves packaging, sample datasets, contributor documentation, and cross-platform reproducibility. No performance, availability, or return guarantees are made.
+
+Public changes are tracked in [`CHANGELOG.md`](CHANGELOG.md), starting with the
+`v0.1.0` community release.
 
 ## Security
 
