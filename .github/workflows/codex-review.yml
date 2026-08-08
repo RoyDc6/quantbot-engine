@@ -69,7 +69,7 @@ jobs:
       final_message: ${{ steps.run_codex.outputs.final-message }}
     steps:
       - name: Check out the pull request merge ref
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: refs/pull/${{ needs.preflight.outputs.pr_number }}/merge
           fetch-depth: 0
@@ -95,7 +95,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Create or update the Codex review comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           CODEX_FINAL_MESSAGE: ${{ needs.review.outputs.final_message }}
           PR_NUMBER: ${{ needs.preflight.outputs.pr_number }}
