@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 import os, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-os.environ['TICKFLOW_API_KEY'] = 'REDACTED_TICKFLOW_KEY_FILE'
+if not os.environ.get("TICKFLOW_API_KEY"):
+    raise RuntimeError("TICKFLOW_API_KEY environment variable is required")
 from tickflow import TickFlow
 import pandas as pd
 
 tf = TickFlow(api_key=os.environ['TICKFLOW_API_KEY'])
-print("Key:", os.environ.get('TICKFLOW_API_KEY', '')[:8])
+print("TickFlow credential configured")
 
 # Test correct period names
 for period in ['1d', '1w', '1M', '1Q', '1Y']:

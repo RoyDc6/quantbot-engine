@@ -6,8 +6,9 @@ _BASE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_BASE))
 sys.path.insert(0, str(_BASE / 'paper_trading'))
 
-# Force reload the NVIDIA API key
-os.environ['NVIDIA_API_KEY'] = 'REDACTED_NVIDIA_API_KEY'
+# Require the credential to be supplied outside the repository
+if not os.environ.get("NVIDIA_API_KEY"):
+    raise RuntimeError("NVIDIA_API_KEY environment variable is required")
 
 from llm_factor_factory.factor_scorer import score_factors, factor_to_signal_score, get_factor_summary, FACTORS
 

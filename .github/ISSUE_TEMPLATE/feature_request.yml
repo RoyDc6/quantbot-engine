@@ -1,0 +1,44 @@
+name: Feature request
+description: Propose a scoped improvement to research, safety, or maintainability
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Large architectural changes should start here before implementation. Requests for real-money execution or autonomous LLM trading are outside project scope.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What concrete contributor or research problem should be solved?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the smallest useful change and the modules it would affect.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety and provenance impact
+      description: Explain how the proposal preserves simulation-only execution, deterministic gates, and auditable outputs.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: Which tests, fixtures, or manual checks should demonstrate correctness?
+    validations:
+      required: true

@@ -1,0 +1,8 @@
+{
+  "cash": 1000000.0,
+  "positions": {},
+  "trades": [],
+  "history": [],
+  "staged_entries": {},
+  "_note": "Example paper-trading state. Copy to portfolio.json for local use; portfolio.json is ignored."
+}

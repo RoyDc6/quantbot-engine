@@ -7,7 +7,10 @@ tickflow_env.py - TickFlow 环境变量自动加载
 加载优先级：
   1. 环境变量（已存在则跳过）
   2. Windows 注册表 HKCU\Environment（用户账户可用）
-  3. 配置文件 config/tickflow_key.txt（SYSTEM 账户回退）
+  3. 本地忽略文件 config/tickflow_key.txt（SYSTEM 账户回退）
+
+Never commit the real key. Copy config/tickflow_key.example.txt locally and
+replace its placeholder only in the ignored config/tickflow_key.txt file.
 """
 import os
 from pathlib import Path
@@ -25,7 +28,7 @@ if not os.environ.get('TICKFLOW_API_KEY'):
         pass
 
 if not os.environ.get('TICKFLOW_API_KEY'):
-    # 方式 2: 配置文件回退（SYSTEM 账户或注册表不可用时）
+    # 方式 2: 被 .gitignore 排除的本地配置文件回退
     key_file = Path(__file__).resolve().parent / 'config' / 'tickflow_key.txt'
     if key_file.exists():
         try:

@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import os, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-os.environ['TICKFLOW_API_KEY'] = 'REDACTED_NAMED_CREDENTIAL'
+if not os.environ.get('TICKFLOW_API_KEY'):
+    raise RuntimeError('TICKFLOW_API_KEY environment variable is required')
+
 import tickflow
 
 client = tickflow.Client()

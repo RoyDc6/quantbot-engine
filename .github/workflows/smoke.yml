@@ -3,7 +3,8 @@
 # 每次 push / pull_request 自动运行：
 #   1. compileall — 验证核心模块无语法错误
 #   2. pytest — 运行全部 smoke tests（含安全不变量）
-#   3. git show --check / git diff --check — 阻止尾随空格
+#   3. repository secret check — 阻止高置信凭据进入当前代码树
+#   4. git show --check / git diff --check — 阻止尾随空格
 #
 # 不连接 Futu OpenD（通过 Mock、--help 等路径避免连接外部服务）
 # 不读取交易密码 / 不运行 real 扫描
@@ -21,6 +22,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   smoke:
@@ -42,6 +46,10 @@ jobs:
 
       - name: compileall — core modules
         run: python -m compileall -q unified_runner.py reports/fusion_report_v3.py core
+        shell: pwsh
+
+      - name: Repository secret check
+        run: python scripts/check_secrets.py
         shell: pwsh
 
       - name: pytest — smoke tests (no external service)

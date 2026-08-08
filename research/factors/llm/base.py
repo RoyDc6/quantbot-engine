@@ -15,6 +15,7 @@ LLM 因子架构设计（遵循 SOUL.md 三层架构哲学）：
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Dict, List, Optional, Tuple
 
@@ -30,7 +31,6 @@ from ...data.base import KLineData
 # NVIDIA NIM API 集成
 # ============================================================
 
-_NVIDIA_API_KEY = "REDACTED_NVIDIA_API_KEY"
 _NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 _DEFAULT_LLM_MODEL = "meta/llama-4-maverick-17b-128e-instruct"  # 0.59s, 中文OK
 _QUALITY_LLM_MODEL = "mistralai/mistral-small-4-119b-2603"  # 0.69s, 119B
@@ -52,10 +52,11 @@ def _rate_limited_call(prompt: str, model: str = _DEFAULT_LLM_MODEL,
         time.sleep(_MIN_INTERVAL - elapsed)
 
     import requests
-    import urllib3
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    api_key = os.environ.get("NVIDIA_API_KEY", "")
+    if not api_key:
+        return "[ERROR missing NVIDIA_API_KEY]"
 
-    headers = {"Authorization": f"Bearer {_NVIDIA_API_KEY}"}
+    headers = {"Authorization": f"Bearer {api_key}"}
     resp = requests.post(
         f"{_NVIDIA_BASE_URL}/chat/completions",
         headers=headers,
@@ -65,7 +66,6 @@ def _rate_limited_call(prompt: str, model: str = _DEFAULT_LLM_MODEL,
             "max_tokens": max_tokens,
             "temperature": temperature,
         },
-        verify=False,
         timeout=120,
     )
     _last_call_time = time.time()
