@@ -27,7 +27,7 @@ def test_codex_workflow_uses_trusted_read_only_boundaries():
     assert "openai-api-key: ${{ secrets.OPENAI_API_KEY }}" in workflow
     assert "sandbox: read-only" in workflow
     assert "safety-strategy: drop-sudo" in workflow
-    assert workflow.index("uses: actions/checkout@v4") < workflow.index(
+    assert workflow.index("uses: actions/checkout@v7") < workflow.index(
         "uses: openai/codex-action@v1"
     )
 
