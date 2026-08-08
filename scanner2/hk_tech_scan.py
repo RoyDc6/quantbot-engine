@@ -53,7 +53,9 @@ except ImportError:
 try:
     import tickflow_env
     from tickflow import TickFlow
-    TF_API_KEY = os.environ.get('TICKFLOW_API_KEY', 'REDACTED_TICKFLOW_KEY_FILE')
+    TF_API_KEY = os.environ.get('TICKFLOW_API_KEY', '')
+    if not TF_API_KEY:
+        raise ImportError("TICKFLOW_API_KEY is not configured")
     tf = TickFlow(api_key=TF_API_KEY)
     TICKFLOW_AVAILABLE = True
 except ImportError:

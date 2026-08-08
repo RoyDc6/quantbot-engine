@@ -22,8 +22,15 @@ quant.db
 
 # Config secrets (if any local overrides)
 .env
+.env.*
+!.env.example
 *.env.local
 config.local.py
+config/*key*.txt
+!config/*.example.txt
+*.pem
+*.key
+*.p12
 
 # IDE / OS
 .idea/
@@ -64,7 +71,16 @@ backups/
 
 # WorkBuddy workspace data (generated, not source code)
 .workbuddy/
+.codebuddy/
+research/.workbuddy/
+research/.codebuddy/
 nul
 
 # Generated scan output (regenerated each run)
 scan_result*.json
+paper_trading/portfolio.json
+paper_trading/*_log.json
+paper_trading/last_scan_report.txt
+scanner2/progress*.json
+scanner2/universe_cache.json
+research/error_screenshot.png
