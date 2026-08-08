@@ -1,0 +1,195 @@
+name: Codex Maintainer Review
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Open pull request number to review
+        required: true
+        type: number
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-review-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+      pr_number: ${{ steps.check.outputs.pr_number }}
+    steps:
+      - name: Validate trusted review context
+        id: check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
+            echo "A valid pull request number is required." >&2
+            exit 1
+          fi
+
+          state="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.state')"
+          draft="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.draft')"
+          configured=false
+
+          if [[ -n "$OPENAI_API_KEY" && "$state" == "open" && "$draft" == "false" ]]; then
+            configured=true
+          fi
+
+          echo "configured=$configured" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+          if [[ "$configured" != "true" ]]; then
+            echo "Codex review skipped: configure OPENAI_API_KEY and use an open, non-draft PR." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  review:
+    needs: preflight
+    if: needs.preflight.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      final_message: ${{ steps.run_codex.outputs.final-message }}
+    steps:
+      - name: Check out the pull request merge ref
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ needs.preflight.outputs.pr_number }}/merge
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Run read-only Codex review
+        id: run_codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/codex/prompts/review.md
+          codex-args: '["--ephemeral", "--output-schema", ".github/codex/schemas/review.schema.json"]'
+          sandbox: read-only
+          safety-strategy: drop-sudo
+
+  post_feedback:
+    needs: [preflight, review]
+    if: needs.review.outputs.final_message != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Create or update the Codex review comment
+        uses: actions/github-script@v7
+        env:
+          CODEX_FINAL_MESSAGE: ${{ needs.review.outputs.final_message }}
+          PR_NUMBER: ${{ needs.preflight.outputs.pr_number }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const marker = '<!-- quantbot-codex-review -->';
+            const raw = process.env.CODEX_FINAL_MESSAGE || '';
+            const prNumber = Number(process.env.PR_NUMBER);
+
+            const safeText = (value) => String(value ?? '')
+              .replaceAll('<', '&lt;')
+              .replaceAll('>', '&gt;');
+            const safeInline = (value) => safeText(value).replaceAll('`', "'");
+
+            let review;
+            try {
+              review = JSON.parse(raw);
+            } catch {
+              review = {
+                summary: 'Codex returned a non-JSON response. Inspect the workflow log.',
+                risk_level: 'unknown',
+                findings: [],
+                validation_recommended: [],
+              };
+            }
+
+            const findings = Array.isArray(review.findings) ? review.findings : [];
+            const validation = Array.isArray(review.validation_recommended)
+              ? review.validation_recommended
+              : [];
+
+            let body = `${marker}\n## Codex maintainer review\n\n`;
+            body += `**Overall risk:** ${safeInline(review.risk_level || 'unknown')}\n\n`;
+            body += `${safeText(review.summary || 'No summary returned.')}\n`;
+
+            if (findings.length === 0) {
+              body += '\nNo actionable findings were returned.\n';
+            } else {
+              for (const finding of findings) {
+                const line = Number.isInteger(finding.line) ? `:${finding.line}` : '';
+                const location = finding.path
+                  ? ` — \`${safeInline(finding.path)}${line}\``
+                  : '';
+                const confidence = typeof finding.confidence === 'number'
+                  ? ` (${Math.round(finding.confidence * 100)}% confidence)`
+                  : '';
+                body += `\n### ${safeInline(finding.severity || 'unknown')}: ${safeText(finding.title || 'Finding')}${location}\n`;
+                body += `${safeText(finding.body || '')}${confidence}\n`;
+              }
+            }
+
+            if (validation.length > 0) {
+              body += '\n### Recommended validation\n';
+              for (const command of validation) {
+                body += `- \`${safeInline(command)}\`\n`;
+              }
+            }
+
+            body += '\n> Advisory output only. A maintainer must verify every finding before making changes.';
+            body = body.slice(0, 60000);
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+            const existing = comments.find((comment) =>
+              comment.user?.type === 'Bot' && comment.body?.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
+
+  not_configured:
+    needs: preflight
+    if: needs.preflight.outputs.configured != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Report safe skip
+        run: echo "Codex review was safely skipped; see the preflight summary."

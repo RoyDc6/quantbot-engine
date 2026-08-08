@@ -8,6 +8,7 @@ Thank you for helping improve QuantBot Engine. The project welcomes focused cont
 - Open an issue before a large architectural change so the scope and safety impact can be discussed.
 - Keep each pull request narrowly focused and explain how it was validated.
 - Do not include proprietary datasets, account information, credentials, or generated portfolio/runtime state.
+- Review the repository-wide coding-agent boundaries in [`AGENTS.md`](AGENTS.md).
 
 ## Project boundaries
 
@@ -41,6 +42,7 @@ Run the same offline checks used by CI:
 python -m compileall -q unified_runner.py reports/fusion_report_v3.py core
 python -m pytest tests/smoke/
 python scripts/check_secrets.py
+python scripts/validate_codex_review.py tests/fixtures/codex_review/valid_review.json
 ```
 
 These commands must not connect to a broker or submit orders. Tests that need external services should use mocks or be clearly separated from the default suite.
@@ -80,3 +82,7 @@ In the pull request description, include:
 - screenshots or sample output only when they contain no private data.
 
 Maintainers may ask for a smaller scope or additional tests before review.
+
+Optional Codex review comments are advisory. Reproduce every accepted finding
+locally and add a regression test; do not merge solely because an automated
+review reports no findings.

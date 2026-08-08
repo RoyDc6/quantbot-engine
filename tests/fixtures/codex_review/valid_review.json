@@ -1,0 +1,9 @@
+{
+  "summary": "The synthetic change preserves the documented simulation-only boundary.",
+  "risk_level": "none",
+  "findings": [],
+  "validation_recommended": [
+    "python -m pytest tests/smoke/",
+    "python scripts/check_secrets.py"
+  ]
+}

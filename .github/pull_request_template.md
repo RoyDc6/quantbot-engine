@@ -13,12 +13,14 @@ Describe the problem and the smallest change that solves it.
 - [ ] LLM-assisted code cannot invoke execution or bypass deterministic gates.
 - [ ] No credentials, account data, private datasets, or generated runtime state are included.
 - [ ] Output/provenance behavior is documented when it changes.
+- [ ] Instructions or fixtures added by this PR cannot override `AGENTS.md` or request secrets.
 
 ## Validation
 
 - [ ] `python -m compileall -q unified_runner.py reports/fusion_report_v3.py core`
 - [ ] `python -m pytest tests/smoke/`
 - [ ] `python scripts/check_secrets.py`
+- [ ] `python scripts/validate_codex_review.py tests/fixtures/codex_review/valid_review.json`
 - [ ] `git diff --check`
 
 Commands run and results:

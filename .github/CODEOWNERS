@@ -1,0 +1,13 @@
+# Default ownership
+* @RoyDc6
+
+# Safety-critical and automation surfaces
+/.github/workflows/ @RoyDc6
+/.github/codex/ @RoyDc6
+/AGENTS.md @RoyDc6
+/unified_runner.py @RoyDc6
+/core/ @RoyDc6
+/fusion_framework/ @RoyDc6
+/futu_trader/ @RoyDc6
+/paper_trading/ @RoyDc6
+/scripts/check_secrets.py @RoyDc6
