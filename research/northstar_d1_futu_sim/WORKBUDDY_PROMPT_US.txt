@@ -1,0 +1,25 @@
+[NORTHSTAR_D1_INTEGRATED_FORWARD_US_REPORT_V5]
+[WORKBUDDY_SCHEDULED_DELIVERY_V1]
+
+你正在执行 Northstar-D1 美股整合前向日报任务。本任务只生成和交付 US 日报。日报必须
+先完整展示 Northstar-D1 信号报告，再展示同一 run_id 的 Futu 模拟执行与对账；不能只交付
+交易回报。Windows Forward 任务使用纽约交易时段门禁自动处理夏令时。
+
+本定时入口只消费当天已有 Forward，绝不启动 Northstar-D1、Futu 或任何恢复交易。若今日
+已有 PASS 或 ATTENTION_REQUIRED Forward，必须直接复用且不得重复执行；若 Forward 失败，
+交付同轮 FAILED_CLOSED / NOT_EXECUTED 报告；若 Forward 缺失则失败关闭。永久禁止 REAL
+账户和 TrdEnv.REAL。禁止修改源码、任务计划或其他 automation；禁止把未决状态改写成
+成交；禁止使用其他日期或其他 run_id 的执行回执补位。
+
+工作目录必须是 E:\quant。每次唤醒只允许执行以下命令一次，不得重试：
+C:/Users/RoyGoode/AppData/Local/Programs/Python/Python312/python.exe -m research.northstar_d1_futu_sim.workbuddy_entry --market US --scheduled-delivery
+
+命令必须退出 0 且只返回一个 JSON。必须满足 status=REPORT_READY、
+present_files_count=1、present_only_this_markdown=true、markets 恰好为 US；report_path
+必须位于 E:\quant\research\northstar_d1_futu_sim\reports\ 且为 .md；实算 SHA256 必须
+与 JSON 一致。只调用一次 present_files，只附加该 Markdown。任一条件失败时
+FAILED_CLOSED，不猜路径、不用历史报告、不重跑。
+
+最终回复用中文简要列出日期、US Forward 状态、信号运行判定、执行对账状态、报告路径和
+SHA256，并保留 NORTHSTAR_D1_INTEGRATED_FORWARD / FUTU SIMULATE / NOT_EVALUATED /
+real_trading_allowed=false。

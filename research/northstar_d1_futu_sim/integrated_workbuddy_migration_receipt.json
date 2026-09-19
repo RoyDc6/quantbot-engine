@@ -1,0 +1,50 @@
+{
+  "status": "WORKBUDDY_INTEGRATED_MIGRATION_COMPLETE",
+  "updated_at": "2026-09-17T10:48:50.875684+08:00",
+  "backup": "C:\\Users\\RoyGoode\\.workbuddy\\automation-backups\\workbuddy-before-northstar-integrated-20260917T104850.db",
+  "backup_sha256": "1eda5acd41f27fcd393b276f6b9752c8a19cdf0e6567a7336a7af89473b09fdd",
+  "verification": {
+    "automation-1789539961349": {
+      "name": "Northstar-D1 Futu港股模拟交易日报",
+      "status": "ACTIVE",
+      "rrule": "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9;BYMINUTE=50",
+      "next_run_at": 1789696200000,
+      "changed_fields": [
+        "next_run_at",
+        "prompt",
+        "rrule",
+        "updated_at"
+      ]
+    },
+    "automation-1789539961350": {
+      "name": "Northstar-D1 Futu美股模拟交易日报",
+      "status": "ACTIVE",
+      "rrule": "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=21;BYMINUTE=50",
+      "next_run_at": 1789653000000,
+      "changed_fields": [
+        "next_run_at",
+        "prompt",
+        "rrule",
+        "updated_at"
+      ]
+    },
+    "automation-1785736457372": {
+      "name": "Northstar-D1 HK 报告交付",
+      "status": "PAUSED",
+      "rrule": "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=16;BYMINUTE=40",
+      "next_run_at": null,
+      "changed_fields": [
+        "updated_at"
+      ]
+    },
+    "automation-1785736457815": {
+      "name": "Northstar-D1 US 报告交付",
+      "status": "PAUSED",
+      "rrule": "FREQ=WEEKLY;BYDAY=TU,WE,TH,FR,SA;BYHOUR=10;BYMINUTE=20",
+      "next_run_at": null,
+      "changed_fields": [
+        "updated_at"
+      ]
+    }
+  }
+}

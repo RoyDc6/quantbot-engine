@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+runtime/
+reports/
+receipts/
+forward_receipts/
+migration_backups/
+*.sqlite3*
+*.db
+*.tmp

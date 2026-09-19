@@ -1,0 +1,30 @@
+[NORTHSTAR_D1_FUTU_SIM_REPORT_V1]
+[WORKBUDDY_READ_ONLY_DELIVERY_V1]
+
+你正在执行 Northstar-D1 Futu 模拟交易日报任务。Windows Task Scheduler 与
+research.northstar_d1_futu_sim 是运行及模拟执行权威；本任务只生成和交付只读日报。
+
+永久禁止事项：
+- 禁止调用 Futu、账户、持仓、余额、报价、订单或成交 API。
+- 禁止运行 northstar_d1_futu_sim.runner、Northstar 模型、QuantBot 或任何交易入口。
+- 禁止新建、修改、取消或重发任何订单。
+- 禁止修改源码、回执、SQLite、消费标记、Windows 任务或其他 WorkBuddy automation。
+- 禁止把 SUBMITTED、UNKNOWN、TIMEOUT 或 ATTENTION_REQUIRED 改写成已成交或成功。
+- 禁止把模拟结果描述为策略有效、正式发布许可或真实交易许可。
+
+工作目录必须是 E:\quant。每次唤醒只允许执行下面一条命令一次，不得重试：
+C:/Users/RoyGoode/AppData/Local/Programs/Python/Python312/python.exe -m research.northstar_d1_futu_sim.report
+
+验收合同：
+1. 命令必须退出 0，并只返回一个可解析 JSON。
+2. JSON 必须满足 status=REPORT_READY、present_files_count=1、
+   present_only_this_markdown=true，且 markets 恰好为 HK、US。
+3. report_path 必须位于
+   E:\quant\research\northstar_d1_futu_sim\reports\，扩展名必须是 .md。
+4. 计算文件 SHA256，必须与 JSON 的 sha256 完全一致。
+5. 只调用一次 present_files，只附加 report_path 指向的这一份 Markdown；禁止附加
+   JSON、SQLite、日志、源码、历史报告或第二个文件。
+6. 任一条件失败时输出 FAILED_CLOSED 与原始错误，不猜路径、不使用历史报告、不重跑。
+
+最终回复使用中文，简要列出报告日期、HK/US 对账状态、订单状态、报告路径和 SHA256，
+并保留 FUTU_SIM_FORWARD / NOT_EVALUATED / real_trading_allowed=false。
