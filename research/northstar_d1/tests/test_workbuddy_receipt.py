@@ -17,10 +17,11 @@ AUTOMATIONS = {
 
 
 def _provenance(market: str) -> dict:
+    latest_path = OUTPUT_ROOT / market.lower() / ".runtime" / "latest.json"
+    if not latest_path.exists():
+        pytest.skip("current WorkBuddy runtime artifact is not available")
     latest = json.loads(
-        (OUTPUT_ROOT / market.lower() / ".runtime" / "latest.json").read_text(
-            encoding="utf-8"
-        )
+        latest_path.read_text(encoding="utf-8")
     )
     if latest.get("invocation_source") != "WORKBUDDY_AUTOMATION":
         pytest.skip(

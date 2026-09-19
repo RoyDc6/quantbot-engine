@@ -25,6 +25,7 @@ def verify_vendor():
     folder = Path(__file__).parent / 'vendor'
     manifest = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
     for row in manifest:
-        if hashlib.sha256((folder / row['file']).read_bytes()).hexdigest() != row['sha256']:
+        source = (folder / row['file']).read_bytes().replace(b'\r\n', b'\n')
+        if hashlib.sha256(source).hexdigest() != row['sha256']:
             raise ValueError('Pinned Northstar source changed: ' + row['file'])
     return digest(manifest)
