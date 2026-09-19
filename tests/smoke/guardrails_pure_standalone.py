@@ -46,6 +46,9 @@ def _build_pre_trade_summary(market, requested_live, confirmed_live,
     largest = None
     if orders:
         largest = max(orders, key=lambda o: o['qty'] * o['price'])
+    largest_buy = None
+    if buy_orders:
+        largest_buy = max(buy_orders, key=lambda o: o['qty'] * o['price'])
 
     cash_after_orders = cash_before + gross_sell - gross_buy
     exposure_after = exposure_before + gross_buy - gross_sell
@@ -100,10 +103,18 @@ def _build_pre_trade_summary(market, requested_live, confirmed_live,
                 'detail': f'{cash_after_orders:,.0f} >= 0' if cash_after_orders >= 0 else f'{cash_after_orders:,.0f} < 0',
             },
             'largest_order_pct': {
-                'pass': (largest['qty'] * largest['price'] / total_assets <= MAX_POSITION_PCT
-                         if largest and total_assets > 0 else True),
-                'detail': (f'{largest["qty"] * largest["price"] / total_assets * 100:.1f}% <= {MAX_POSITION_PCT*100:.0f}%'
-                           if largest and total_assets > 0 else 'no orders'),
+                'pass': (
+                    largest_buy['qty'] * largest_buy['price'] / total_assets
+                    <= MAX_POSITION_PCT
+                    if largest_buy and total_assets > 0 else True
+                ),
+                'detail': (
+                    f'{largest_buy["qty"] * largest_buy["price"] / total_assets * 100:.1f}% '
+                    f'<= {MAX_POSITION_PCT*100:.0f}% (largest BUY)'
+                    if largest_buy and total_assets > 0
+                    else ('SELL-only orders reduce exposure; exempt'
+                          if sell_orders else 'no BUY orders')
+                ),
             },
             'exposure_after_orders': {
                 'pass': exposure_after / total_assets <= MAX_TOTAL_PCT if total_assets > 0 else True,
@@ -203,6 +214,34 @@ if s3['risk_checks']['cash_after_orders']['pass'] is False:
     passed += 1
 else:
     failed.append('FAIL summary: cash_insufficient should fail')
+
+# Risk-reducing SELL above the position cap must remain executable.
+s_sell = _build_pre_trade_summary(
+    'US', True, True,
+    {'total_assets': 1039481, 'cash': 797724, 'market_val': 241756},
+    [{'symbol': 'AAPL.US', 'qty': 739}],
+    [{'symbol': 'AAPL.US', 'action': 'SELL', 'qty': 739,
+      'price': 328.70, 'reason': 'take profit'}],
+    1039481, 797724, 241756,
+)
+if s_sell['risk_checks']['largest_order_pct']['pass'] is True:
+    passed += 1
+else:
+    failed.append('FAIL summary: risk-reducing SELL should bypass BUY position cap')
+
+# Exposure-increasing BUY above the cap must still fail.
+s_buy = _build_pre_trade_summary(
+    'US', True, True,
+    {'total_assets': 1000000, 'cash': 1000000, 'market_val': 0},
+    [],
+    [{'symbol': 'AAPL.US', 'action': 'BUY', 'qty': 700,
+      'price': 328.70, 'reason': 'test'}],
+    1000000, 1000000, 0,
+)
+if s_buy['risk_checks']['largest_order_pct']['pass'] is False:
+    passed += 1
+else:
+    failed.append('FAIL summary: oversized BUY should remain blocked')
 
 # ── 双算防护测试：cash_before / exposure_before 不应被调用方预先修改 ──
 # 模拟场景：cash_before=100000, exposure_before=20000, BUY 10000, SELL 5000

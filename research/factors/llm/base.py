@@ -21,6 +21,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+import config
 
 from ..base import BaseFactor
 from ..registry import FactorMeta
@@ -33,7 +34,7 @@ from ...data.base import KLineData
 
 _NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 _DEFAULT_LLM_MODEL = "meta/llama-4-maverick-17b-128e-instruct"  # 0.59s, 中文OK
-_QUALITY_LLM_MODEL = "mistralai/mistral-small-4-119b-2603"  # 0.69s, 119B
+_QUALITY_LLM_MODEL = config.LLM_MODEL
 
 # 速率限制：9 req/min
 import time

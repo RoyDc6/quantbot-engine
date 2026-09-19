@@ -13,7 +13,7 @@ import secrets
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Iterable
@@ -556,7 +556,8 @@ class OrderJournal:
     def has_blocking_orders(self) -> bool:
         return bool(self.unresolved_orders())
 
-    def reconcile(self, adapter: Any, stale_reserved_seconds: int = 3600) -> list[dict[str, Any]]:
+    def reconcile(self, adapter: Any, stale_reserved_seconds: int = 3600,
+                  include_history: bool = True) -> list[dict[str, Any]]:
         unresolved = self.unresolved_orders()
         if not unresolved:
             return []
@@ -575,6 +576,48 @@ class OrderJournal:
             (str(o.get('code', '') or ''), str(o.get('remark', '') or '')): o
             for o in futu_orders
         }
+        unmatched = [
+            entry for entry in unresolved
+            if (
+                not entry.get('order_id')
+                or str(entry['order_id']) not in by_order_id
+            )
+            and (
+                entry['futu_code'], entry['broker_remark']
+            ) not in by_remark
+        ]
+
+        if (
+            unmatched
+            and include_history
+            and hasattr(adapter, 'get_history_order_list')
+        ):
+            today = datetime.now().date()
+            history_floor = today - timedelta(days=89)
+            run_dates = []
+            for entry in unmatched:
+                try:
+                    run_dates.append(datetime.fromisoformat(entry['run_date']).date())
+                except Exception:
+                    pass
+            history_start = max(min(run_dates or [today]), history_floor).isoformat()
+            history_qr = adapter.get_history_order_list(
+                market=self.market, start=history_start, end=today.isoformat(),
+            )
+            history_orders = (
+                history_qr.require(f'{self.market} history order list')
+                if hasattr(history_qr, 'require') else history_qr
+            )
+            if history_orders is None:
+                raise RuntimeError(f'{self.market} history order list query returned None')
+            for order in history_orders:
+                order_id = str(order.get('order_id', '') or '')
+                if order_id:
+                    by_order_id[order_id] = order
+                by_remark[(
+                    str(order.get('code', '') or ''),
+                    str(order.get('remark', '') or ''),
+                )] = order
 
         changed: list[dict[str, Any]] = []
         now_ts = datetime.now(timezone.utc).replace(tzinfo=None)

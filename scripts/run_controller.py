@@ -25,6 +25,17 @@ from core.fusion_controller import FusionController
 from core.universe_manager import UniverseManager
 
 
+def configure_console_output():
+    """避免 Windows CP936/重定向终端因不可编码字符中断扫描。"""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, 'reconfigure', None)
+        if reconfigure:
+            try:
+                reconfigure(encoding='utf-8', errors='replace')
+            except (ValueError, OSError):
+                pass
+
+
 def setup_argparse():
     parser = argparse.ArgumentParser(
         description='FusionController 战术中控台 — 三驾马车缝合管线',
@@ -52,6 +63,9 @@ def setup_argparse():
                        help='启用实盘模式（当前为 dry-run）')
     parser.add_argument('--force-llm', action='store_true',
                        help='强制重跑 LLM 因子（跳过缓存）')
+    parser.add_argument('--llm-alpha-mode', choices=['audit_only', 'weighted'],
+                       default='audit_only',
+                       help='LLM alpha 模式（默认 audit_only；weighted 为回退兼容）')
     parser.add_argument('--no-xmm', action='store_true',
                        help='禁用 XMM 信号源')
     parser.add_argument('--no-vp', action='store_true',
@@ -89,18 +103,18 @@ def print_ticker_summary(result: dict):
 
     # 信号源状态
     src_icons = {
-        'xmm': '🟢' if status.get('xmm') == 'OK' else '⚪',
-        'vp': '🟢' if status.get('vp') == 'OK' else '⚪',
-        'llm': '🟢' if status.get('llm') == 'OK' else '⚪',
+        'xmm': '[OK]' if status.get('xmm') == 'OK' else '[--]',
+        'vp': '[OK]' if status.get('vp') == 'OK' else '[--]',
+        'llm': '[OK]' if status.get('llm') == 'OK' else '[--]',
     }
 
     # 最终动作
     act = directive.get('action', 'HOLD')
-    act_icon = {'BUY': '🟢', 'SELL': '🔴', 'HOLD': '⚪', 'BLOCKED': '🚫'}.get(act, '⚪')
+    act_icon = {'BUY': '[BUY]', 'SELL': '[SELL]', 'HOLD': '[HOLD]', 'BLOCKED': '[BLOCKED]'}.get(act, '[--]')
 
     print(f'  {act_icon} {ticker:<10}  ${close:<8.1f}  '
           f'{src_icons["xmm"]}XMM {src_icons["vp"]}VP {src_icons["llm"]}LLM  '
-          f'→ {act:<7}  {fusion.get("level", "?"):<10} '
+          f'-> {act:<7}  {fusion.get("level", "?"):<10} '
           f'(score={fusion.get("score", 0):+.1f} '
           f'conf={fusion.get("confidence", 0):.2f})  [{source}]')
 
@@ -108,12 +122,12 @@ def print_ticker_summary(result: dict):
     if act == 'BLOCKED':
         reasons = gate.get('reject_reasons', [])
         for r in reasons:
-            print(f'    🚫 {r}')
+            print(f'    [BLOCKED] {r}')
     if fusion.get('warnings'):
         for w in fusion.get('warnings', []):
-            print(f'    ⚠️  {w}')
+            print(f'    [WARN] {w}')
     if fusion.get('reasoning'):
-        print(f'    📝 {fusion["reasoning"]}')
+        print(f'    [INFO] {fusion["reasoning"]}')
 
 
 def cmd_status(fc: FusionController):
@@ -124,7 +138,7 @@ def cmd_status(fc: FusionController):
     # 适配器状态
     adapters = report.get('adapters', {})
     for atype, info in adapters.items():
-        icon = '✅' if info.get('available') else ('⚠️' if info.get('registered') else '❌')
+        icon = '[OK]' if info.get('available') else ('[WARN]' if info.get('registered') else '[ERROR]')
         reg = '已注册' if info.get('registered') else '未注册'
         avail = '在线' if info.get('available') else '离线'
         msg = info.get('message') or ''
@@ -135,7 +149,7 @@ def cmd_status(fc: FusionController):
     for comp, status in report['components'].items():
         if comp in ('futu_adapter', 'crypto_adapter'):
             continue  # 已在上方展示
-        print(f'  {comp:<15}: {"✅" if status else "❌"}')
+        print(f'  {comp:<15}: {"[OK]" if status else "[ERROR]"}')
     print()
     print(f'  资产池:   {fc.universe.total_count} 只')
     print(f'  港股:     {fc.universe.hk_count} 只')
@@ -150,23 +164,35 @@ def cmd_status(fc: FusionController):
             print(f'    {s} ({fc.universe.get_name(s)})')
     print()
     print(f'  权重配置:')
-    from core.fusion_controller import BASE_WEIGHTS
-    print(f'    XMM={BASE_WEIGHTS["xmm"]:.0%} VP={BASE_WEIGHTS["vp"]:.0%} LLM={BASE_WEIGHTS["llm"]:.0%}')
-    print(f'    （静态权重，不随市场状态变化 | 断流时存活源重新归一化）')
+    status = fc.status_report()
+    effective = status.get('effective_weights', {})
+    reserved = status.get('reserved_weights', {})
+    print(f'    XMM={effective.get("xmm", 0):.0%} VP={effective.get("vp", 0):.0%} '
+          f'LLM={effective.get("llm", 0):.0%} reserve={reserved.get("llm", 0):.0%}')
+    print(f'    LLM alpha mode: {status.get("llm_alpha_mode", "unknown")}')
 
 
 def cmd_single(fc: FusionController, ticker: str, args):
     """单个标的分析。"""
     print(f'\n=== 单标的分: {ticker} ===\n')
+    market_state = args.market_state or 'CRAB'
+    state_meta = None
+    if args.market_state is None and ticker.endswith(('.USDT', '.USDC', '.USD')):
+        state_meta = fc.detect_crypto_market_state()
+        market_state = state_meta['state']
+
     result = fc.analyze_ticker(
         ticker=ticker,
-        market_state=args.market_state or 'CRAB',
+        market_state=market_state,
         vix_regime=args.vix_regime or 'CANDIDATE',
         force_llm=args.force_llm,
         run_xmm=not args.no_xmm,
         run_vp=not args.no_vp,
         run_llm=not args.no_llm,
     )
+    if state_meta:
+        result['market_state_source'] = state_meta['source']
+        result['market_state_asof'] = state_meta['signal_asof']
     print_ticker_summary(result)
     return result
 
@@ -178,11 +204,23 @@ def cmd_scan(fc: FusionController, market: str, args):
 
     for m in markets:
         print(f'\n\n=== {m} 市场扫描 ===\n')
-        state = args.market_state or ('CRAB' if m == 'HK' else 'BULL')
+        state_meta = None
+        if args.market_state:
+            state = args.market_state
+            state_source = 'cli_override'
+        elif m == 'Crypto':
+            state_meta = fc.detect_crypto_market_state()
+            state = state_meta['state']
+            state_source = state_meta['source']
+        else:
+            state = 'CRAB' if m == 'HK' else 'BULL'
+            state_source = 'legacy_default'
         vix = args.vix_regime or 'CANDIDATE'
         # Crypto 不适用 VIX 标记为 N/A
         if m == 'Crypto':
             vix = 'N/A'
+            print(f'  Crypto 状态来源: {state_source}'
+                  f'{" | asof=" + str(state_meta["signal_asof"]) if state_meta and state_meta.get("signal_asof") else ""}')
 
         results = fc.scan_market(
             market=m,
@@ -192,6 +230,10 @@ def cmd_scan(fc: FusionController, market: str, args):
             force_llm=args.force_llm,
         )
         all_results[m] = results
+        for result in results:
+            result['market_state_source'] = state_source
+            if state_meta and state_meta.get('signal_asof'):
+                result['market_state_asof'] = state_meta['signal_asof']
 
         print()
         # 统计
@@ -227,13 +269,14 @@ def cmd_report(fc: FusionController):
 
 
 def main():
+    configure_console_output()
     parser = setup_argparse()
     args = parser.parse_args()
     
     print_header()
     
     # 初始化
-    fc = FusionController()
+    fc = FusionController({'llm_alpha_mode': args.llm_alpha_mode})
     
     # 确定命令
     if args.status:
@@ -271,7 +314,7 @@ def _save_json(path: str, data, pretty=False):
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2 if pretty else None,
                   default=str)
-    print(f'\n💾 结果已保存: {path.resolve()}')
+    print(f'\n[SAVED] 结果已保存: {path.resolve()}')
 
 
 if __name__ == '__main__':

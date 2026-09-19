@@ -10,15 +10,20 @@ unified_runner.py - QuantBot 统一港股+美股 Futu 模拟交易运行器
   python unified_runner.py --both           # 强制双线
   python unified_runner.py --live           # 实际下单（默认 DRY-RUN）
   python unified_runner.py --signal-only    # 只生成信号，不交易
+  python unified_runner.py --research-report # 完成日线研究报告；不访问账户/订单
   python unified_runner.py --no-stop        # 不执行止损检查
 """
 import sys
 import os
 import json
 import argparse
+import re
 import warnings
-from datetime import datetime, date
+from datetime import datetime, date, time, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+import pandas as pd
 
 # stdout 编码修正（Windows GBK 环境下 emoji 会炸）
 try:
@@ -74,6 +79,119 @@ def is_us_trading_day(d=None):
     return d.weekday() < 5 and d not in US_HOLIDAYS_2026
 
 
+def latest_completed_us_session(now=None):
+    """返回当前时点最近一个已完成的美股交易日。"""
+    eastern = ZoneInfo('America/New_York')
+    if now is None:
+        now_et = datetime.now(eastern)
+    elif now.tzinfo is None:
+        now_et = now.replace(tzinfo=ZoneInfo('Asia/Shanghai')).astimezone(eastern)
+    else:
+        now_et = now.astimezone(eastern)
+
+    candidate = now_et.date()
+    if not is_us_trading_day(candidate) or now_et.time() < time(16, 15):
+        candidate -= timedelta(days=1)
+    while not is_us_trading_day(candidate):
+        candidate -= timedelta(days=1)
+    return candidate
+
+
+def count_missing_us_sessions(as_of, expected_as_of):
+    """计算 as-of 到预期已完成交易日之间缺失的交易场次。"""
+    if not as_of or not expected_as_of:
+        return None
+    start = date.fromisoformat(str(as_of)[:10])
+    expected = date.fromisoformat(str(expected_as_of)[:10])
+    if start >= expected:
+        return 0
+    missing = 0
+    cursor = start + timedelta(days=1)
+    while cursor <= expected:
+        if is_us_trading_day(cursor):
+            missing += 1
+        cursor += timedelta(days=1)
+    return missing
+
+
+def finalize_vxx_freshness(meta, expected_as_of):
+    """补齐 VXX 交易场次新鲜度元数据；空 meta 用于兼容旧测试桩。"""
+    if not isinstance(meta, dict) or not meta:
+        return {}
+    result = dict(meta)
+    result['expected_as_of'] = expected_as_of
+    stale_sessions = count_missing_us_sessions(
+        result.get('as_of'),
+        expected_as_of,
+    )
+    result['stale_sessions'] = stale_sessions
+    if not result.get('as_of'):
+        result['freshness'] = 'MISSING'
+    elif stale_sessions == 0:
+        result['freshness'] = 'OK'
+    else:
+        result['freshness'] = 'STALE'
+    return result
+
+
+def _require_completed_daily_signals(signals, market):
+    """Fail closed unless every signal uses one confirmed completed D1 session."""
+    if not signals:
+        raise RuntimeError('NO_SIGNALS')
+    expected_timezone = {
+        'HK': 'Asia/Hong_Kong',
+        'US': 'America/New_York',
+    }.get(str(market).upper())
+    if not expected_timezone:
+        raise RuntimeError(f'UNSUPPORTED_MARKET:{market}')
+
+    signal_dates = set()
+    failures = []
+    for signal in signals:
+        symbol = signal.get('symbol', 'UNKNOWN')
+        signal_asof = str(signal.get('signal_asof') or signal.get('date') or '')[:10]
+        try:
+            date.fromisoformat(signal_asof)
+        except ValueError:
+            failures.append(f'{symbol}:INVALID_SIGNAL_ASOF')
+            continue
+        signal_dates.add(signal_asof)
+        if signal.get('bar_confirmed') is not True:
+            failures.append(f'{symbol}:BAR_NOT_CONFIRMED')
+        if signal.get('bar_finality') != 'COMPLETED_SESSION_ONLY':
+            failures.append(f'{symbol}:FINALITY_NOT_COMPLETED_SESSION_ONLY')
+        if signal.get('bar_timezone') != expected_timezone:
+            failures.append(f'{symbol}:BAR_TIMEZONE_MISMATCH')
+
+    if len(signal_dates) != 1:
+        failures.append(f'MIXED_SIGNAL_ASOF:{sorted(signal_dates)}')
+    if failures:
+        raise RuntimeError(';'.join(failures))
+    return next(iter(signal_dates))
+
+
+def guard_new_buys_by_vxx(buy_candidates, vxx_meta):
+    """VXX 不新鲜时仅阻断新增 BUY，不影响 SELL/止损。"""
+    if not isinstance(vxx_meta, dict) or not vxx_meta:
+        return buy_candidates
+    if vxx_meta.get('freshness') == 'OK':
+        return buy_candidates
+
+    reason = (
+        'VXX freshness guard: '
+        f'{vxx_meta.get("freshness", "UNKNOWN")} '
+        f'(source={vxx_meta.get("source", "UNKNOWN")}, '
+        f'as_of={vxx_meta.get("as_of") or "N/A"}, '
+        f'expected={vxx_meta.get("expected_as_of") or "N/A"})'
+    )
+    for signal in buy_candidates:
+        warnings_list = signal.setdefault('warnings', [])
+        if reason not in warnings_list:
+            warnings_list.append(reason)
+    print(f'  [VXX GUARD] {reason}；阻断新增 BUY，SELL 链路保持可用')
+    return []
+
+
 def get_market_to_run(force_market=None):
     """根据当前时间和参数决定运行哪个市场。"""
     now = datetime.now()
@@ -102,13 +220,17 @@ def get_market_to_run(force_market=None):
 
 # === 主流程 ========================================================
 def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
-        requested_live=False, live_confirmed=False):
+        requested_live=False, live_confirmed=False, research_report=False):
+    if research_report:
+        signal_only = True
     today = datetime.now().strftime('%Y-%m-%d')
     ts_start = datetime.now()
 
     # 确定 execution_mode
     should_block, _block_reasons = False, []
-    if signal_only:
+    if research_report:
+        execution_mode = 'RESEARCH_ONLY'
+    elif signal_only:
         execution_mode = 'DRY_RUN'
     elif requested_live and live_confirmed:
         execution_mode = 'LIVE_CONFIRMED'
@@ -129,11 +251,28 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
     print(f'\n  [连接] {msg}')
     if not ok:
         print('  [FATAL] Futu OpenD 不可达，中止运行')
-        return
+        return 4 if research_report else None
 
-    # Step 1: 加载 VIX + 初始化 FusionController（战术中控台）
-    vix_map = adapter.fetch_vix_data()
-    print(f'  [VIX] 加载 {len(vix_map)} 条数据')
+    # Step 1: 加载 VXX + 初始化 FusionController（战术中控台）
+    expected_vxx_as_of = latest_completed_us_session().isoformat()
+    vix_map = adapter.fetch_vix_data(expected_as_of=expected_vxx_as_of)
+    raw_vxx_meta = getattr(adapter, 'last_vxx_meta', None)
+    vxx_meta = finalize_vxx_freshness(
+        raw_vxx_meta if isinstance(raw_vxx_meta, dict) else {},
+        expected_vxx_as_of,
+    )
+    raw_vxx_df = getattr(adapter, 'last_vxx_df', None)
+    vxx_df = raw_vxx_df if isinstance(raw_vxx_df, pd.DataFrame) else None
+    if vxx_meta:
+        print(
+            f'  [VXX] 加载 {len(vix_map)} 条 | '
+            f'{vxx_meta.get("source")} | as-of {vxx_meta.get("as_of")} | '
+            f'{vxx_meta.get("freshness")}'
+        )
+        if vxx_meta.get('fetch_error'):
+            print(f'  [VXX WARN] Futu 主源失败: {vxx_meta["fetch_error"]}')
+    else:
+        print(f'  [VXX] 加载 {len(vix_map)} 条（无新鲜度元数据）')
 
     fc = FusionController(config={
         'futu_host': config.FUTU_HOST,
@@ -145,11 +284,15 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
     market_report = None
     try:
         from market_state.classifier import MarketStateClassifier
-        clf = MarketStateClassifier('SPY.US')
+        clf = MarketStateClassifier(
+            'SPY.US',
+            vix_df=vxx_df,
+            vix_meta=vxx_meta,
+        )
         clf.load_data()
         market_report = clf.analyze()
         market_state = market_report['market_state']
-        print(f'  [Market State] {market_state} (VIX: {market_report["vix_regime"]} | Trend: {market_report["trend"]} | Momentum: {market_report["momentum"]})')
+        print(f'  [Market State] {market_state} (VXX: {market_report["vix_regime"]} | Trend: {market_report["trend"]} | Momentum: {market_report["momentum"]})')
     except Exception as e:
         print(f'  [WARN] MarketStateClassifier 失败, 回退 CRAB: {e}')
         print(f'  Market State: {market_state}')
@@ -199,6 +342,8 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
             import traceback; traceback.print_exc()
             signals.append({
                 'symbol': sym, 'market': market, 'date': today,
+                'signal_asof': today, 'bar_confirmed': False,
+                'bar_finality': 'UNVERIFIED', 'bar_timezone': None,
                 'close': 0, 'data_source': 'ERROR',
                 'fusion_level': 'HOLD', 'fusion_score': 0.0,
                 'fusion_confidence': 0.0, 'target_position': 0.0,
@@ -213,24 +358,55 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
     print(f'\n  信号: 总{len(signals)} | BUY:{len(buys)} | SELL:{len(sells)}')
 
     if signal_only:
-        _save_signals(today, market, signals)
-        print(f'\n  [信号模式] 仅生成信号，不执行交易')
+        report_date = today
+        report_mode = 'SIGNAL_ONLY_SNAPSHOT'
+        bar_finality = 'UNVERIFIED'
+        if research_report:
+            try:
+                report_date = _require_completed_daily_signals(signals, market)
+            except RuntimeError as exc:
+                print(f'\n  [FATAL] 完成日线门禁失败: {exc}')
+                print('  [边界] 未访问账户、持仓、余额、购买力或订单 API')
+                return 4
+            report_mode = 'RESEARCH_ONLY_COMPLETED_DAILY'
+            bar_finality = 'COMPLETED_SESSION_ONLY'
+        _save_signals(
+            report_date, market, signals,
+            execution_mode=execution_mode if research_report else 'SIGNAL_ONLY',
+            execution_results=[],
+            report_mode=report_mode,
+            bar_finality=bar_finality,
+            execution_enabled=False,
+            account_access=False,
+            order_api_called=False,
+        )
+        if research_report:
+            print(f'\n  [研究报告] 完成日线 {report_date}；账户与订单能力未调用')
+        else:
+            print(f'\n  [信号模式] 仅生成信号，不执行交易')
         _print_summary(signals, market_state=market_state)
         # 信号模式下也生成 v3 报告
         try:
             from reports.fusion_report_v3 import generate_v3_report
             generate_v3_report(
-                date=today,
+                date=report_date,
                 market=market,
                 signals=signals,
                 orders=[],
                 positions=[],
                 account=None,
                 market_report=market_report,
+                execution_mode=execution_mode if research_report else 'SIGNAL_ONLY',
+                execution_results=[],
+                report_mode=report_mode,
+                account_access=False,
+                order_api_called=False,
             )
         except Exception as e:
             print(f'  [WARN] v3日报生成失败: {e}')
-        return
+            if research_report:
+                return 4
+        return 0 if research_report else None
 
     # Step 4: 查询 Futu 账户（唯一持仓真相源）
     print(f'\n{"="*65}')
@@ -390,6 +566,7 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
         if s['symbol'] not in held_syms
         and not risk_mgr.is_in_cooldown(to_futu_code(s['symbol']))
     ]
+    buy_candidates = guard_new_buys_by_vxx(buy_candidates, vxx_meta)
 
     for sig in buy_candidates:
         if len(held_syms) >= max_positions:
@@ -492,6 +669,7 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
     print(f'  Mode: {execution_mode}')
     print(f'{"="*65}')
 
+    execution_results = []
     if not orders:
         print('  无订单需要执行')
     elif execution_mode == 'DRY_RUN':
@@ -501,7 +679,9 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
         )
         ts_str = datetime.now().strftime('%Y%m%d_%H%M%S')
         log_path = str(log_dir / f'trades_{market}_{ts_str}.json')
-        results = executor.execute_orders(orders, log_path=log_path, risk_manager=risk_mgr)
+        execution_results = executor.execute_orders(
+            orders, log_path=log_path, risk_manager=risk_mgr,
+        )
     elif execution_mode == 'LIVE_CONFIRMED':
         executor = OrderExecutor(
             host=config.FUTU_HOST, port=config.FUTU_PORT,
@@ -509,7 +689,7 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
         )
         ts_str = datetime.now().strftime('%Y%m%d_%H%M%S')
         log_path = str(log_dir / f'trades_{market}_{ts_str}.json')
-        results = _execute_live_confirmed_orders(
+        execution_results = _execute_live_confirmed_orders(
             executor=executor,
             adapter=adapter,
             risk_mgr=risk_mgr,
@@ -521,11 +701,32 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
         print(f'  [GUARDRAIL] 订单已生成但未执行 (mode={execution_mode})')
         print(f'  [GUARDRAIL] 共 {len(orders)} 笔订单，详情见上方 pre-trade summary')
 
+    # 日报账户/持仓必须反映执行后的真实状态。任何 LIVE 回执都可能包含
+    # 成交或部分成交，因此统一重新查询；查询失败时保留执行前快照并告警。
+    report_account = account
+    report_positions = positions
+    if execution_mode == 'LIVE_CONFIRMED' and execution_results:
+        try:
+            report_account = _require_query_result(
+                adapter.get_account_info(market),
+                f'{mkt_label}执行后账户',
+            )
+            report_positions = _require_query_result(
+                adapter.get_positions(market),
+                f'{mkt_label}执行后持仓',
+            )
+        except RuntimeError as exc:
+            print(f'  [WARN] 执行后账户复核失败，日报保留执行前快照: {exc}')
+
     # 保存风控状态
     risk_mgr.save_state()
 
     # 保存信号报告
-    _save_signals(today, market, signals, orders)
+    _save_signals(
+        today, market, signals, orders,
+        execution_mode=execution_mode,
+        execution_results=execution_results,
+    )
 
     # 打印摘要
     _print_summary(signals, market_state=market_state)
@@ -535,7 +736,8 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
         from reports.fusion_report_v3 import generate_v3_report
         # 将 Futu 持仓转换为报告兼容格式
         _reporter_positions = []
-        for sym, p in held_map.items():
+        for p in report_positions:
+            sym = _futu_to_std(p['code'])
             cur_price = p.get('current_price', 0)
             cost_price = p.get('cost_price', 0) or 1
             _reporter_positions.append({
@@ -553,8 +755,10 @@ def run(market='HK', dry_run=True, signal_only=False, no_stop=False,
             signals=signals,
             orders=orders,
             positions=_reporter_positions,
-            account=account,
+            account=report_account,
             market_report=market_report,
+            execution_mode=execution_mode,
+            execution_results=execution_results,
         )
     except Exception as e:
         print(f'  [WARN] v3日报生成失败: {e}')
@@ -713,6 +917,9 @@ def _build_pre_trade_summary(market, requested_live, confirmed_live,
     largest = None
     if orders:
         largest = max(orders, key=lambda o: o['qty'] * o['price'])
+    largest_buy = None
+    if buy_orders:
+        largest_buy = max(buy_orders, key=lambda o: o['qty'] * o['price'])
 
     cash_after_orders = cash_before + gross_sell - gross_buy
     exposure_after = exposure_before + gross_buy - gross_sell
@@ -771,10 +978,21 @@ def _build_pre_trade_summary(market, requested_live, confirmed_live,
                           else f'{cash_after_orders:,.0f} < 0',
             },
             'largest_order_pct': {
-                'pass': (largest['qty'] * largest['price'] / total_assets <= config.MAX_POSITION_PCT
-                         if largest and total_assets > 0 else True),
-                'detail': (f'{largest["qty"] * largest["price"] / total_assets * 100:.1f}% <= {config.MAX_POSITION_PCT*100:.0f}%'
-                           if largest and total_assets > 0 else 'no orders'),
+                # MAX_POSITION_PCT limits exposure-increasing BUY orders.  A
+                # risk-reducing SELL must not be blocked merely because the
+                # existing position was already above the cap.
+                'pass': (
+                    largest_buy['qty'] * largest_buy['price'] / total_assets
+                    <= config.MAX_POSITION_PCT
+                    if largest_buy and total_assets > 0 else True
+                ),
+                'detail': (
+                    f'{largest_buy["qty"] * largest_buy["price"] / total_assets * 100:.1f}% '
+                    f'<= {config.MAX_POSITION_PCT*100:.0f}% (largest BUY)'
+                    if largest_buy and total_assets > 0
+                    else ('SELL-only orders reduce exposure; exempt'
+                          if sell_orders else 'no BUY orders')
+                ),
             },
             'exposure_after_orders': {
                 'pass': exposure_after / total_assets <= config.MAX_TOTAL_PCT if total_assets > 0 else True,
@@ -839,7 +1057,7 @@ def _print_pre_trade_summary(summary: dict):
     print(f'║ Risk Checks{"":51}║')
     print(f'║   {"Order Count":20} {"✅ PASS" if orders_pass else "❌ FAIL":<10} {risk["order_count"]["detail"]:<27}║')
     print(f'║   {"Cash After Orders":20} {"✅ PASS" if cash_pass else "❌ FAIL":<10} {risk["cash_after_orders"]["detail"]:<27}║')
-    print(f'║   {"Largest Order %":20} {"✅ PASS" if pos_pass else "❌ FAIL":<10} {risk["largest_order_pct"]["detail"]:<27}║')
+    print(f'║   {"Largest BUY %":20} {"✅ PASS" if pos_pass else "❌ FAIL":<10} {risk["largest_order_pct"]["detail"]:<27}║')
     print(f'║   {"Exposure After":20} {"✅ PASS" if exp_pass else "❌ FAIL":<10} {risk["exposure_after_orders"]["detail"]:<27}║')
     if summary.get('requested_live') and not summary.get('confirmed_live'):
         print(f'║   {"Confirm Live":20} {"❌ FAIL":<10} {"--confirm-live missing":<27}║')
@@ -890,6 +1108,120 @@ def _should_block_live(summary: dict) -> tuple:
 
 # === 辅助函数 =====================================================
 
+LLM_RSI_AUDIT_TOLERANCE = 5.0
+_LLM_RSI_PATTERN = re.compile(
+    r'\bRSI(?:14)?\b(?:\s+(?:is|high\s+at|low\s+at|at))?'
+    r'\s*[\(:=]?\s*(-?\d+(?:\.\d+)?)\s*\)?',
+    re.IGNORECASE,
+)
+_LLM_RSI_THRESHOLD_PATTERN = re.compile(
+    r'\bRSI(?:14)?\b\s*(?:is\s+)?'
+    r'(below|under|less\s+than|above|over|greater\s+than)\s*'
+    r'(\d+(?:\.\d+)?)\b',
+    re.IGNORECASE,
+)
+_LLM_RSI_QUALITATIVE_PATTERN = re.compile(
+    r'\b(overbought|oversold)\b',
+    re.IGNORECASE,
+)
+_LLM_RSI_HEDGE_PATTERN = re.compile(
+    r'\b(?:not|not\s+yet|near|nearing|almost|approaching)\s*$',
+    re.IGNORECASE,
+)
+
+
+def _direct_rsi_qualitative_claim(summary: str):
+    """Return a direct overbought/oversold claim, ignoring hedged wording."""
+    for match in _LLM_RSI_QUALITATIVE_PATTERN.finditer(summary):
+        prefix = summary[max(0, match.start() - 24):match.start()].rstrip()
+        if _LLM_RSI_HEDGE_PATTERN.search(prefix):
+            continue
+        return match.group(1).lower()
+    return None
+
+
+def _audit_llm_summary(summary: str, canonical_rsi, status: str):
+    """Validate report-only RSI prose without changing fusion or execution."""
+    summary = str(summary or '')
+    status = str(status or 'SKIPPED').upper()
+    result = {
+        'summary': summary,
+        'raw_summary': '',
+        'status': status,
+        'quality': 'NOT_CHECKED',
+        'warning': '',
+        'summary_rsi': None,
+    }
+
+    if status not in ('OK', 'FALLBACK') or not summary or canonical_rsi is None:
+        return result
+
+    try:
+        canonical = float(canonical_rsi)
+    except (TypeError, ValueError):
+        return result
+    if not 0 <= canonical <= 100:
+        return result
+
+    claim_found = False
+    mismatch_detail = None
+    quality = ''
+    warning_detail = ''
+
+    numeric_match = _LLM_RSI_PATTERN.search(summary)
+    if numeric_match:
+        claim_found = True
+        summary_rsi = float(numeric_match.group(1))
+        result['summary_rsi'] = summary_rsi
+        if abs(summary_rsi - canonical) >= LLM_RSI_AUDIT_TOLERANCE:
+            mismatch_detail = f'RSI {summary_rsi:.1f}'
+            quality = 'RSI_MISMATCH'
+            warning_detail = f'llm={summary_rsi:.1f}, canonical={canonical:.1f}'
+
+    # A correct copied number does not make a contradictory semantic label
+    # correct (for example, "RSI 38.5 signals oversold").
+    threshold_match = _LLM_RSI_THRESHOLD_PATTERN.search(summary)
+    if mismatch_detail is None and threshold_match:
+        claim_found = True
+        relation = threshold_match.group(1).lower()
+        threshold = float(threshold_match.group(2))
+        is_below = relation in ('below', 'under', 'less than')
+        consistent = canonical < threshold if is_below else canonical > threshold
+        if not consistent:
+            mismatch_detail = f'RSI {relation} {threshold:g}'
+            quality = 'RSI_SEMANTIC_MISMATCH'
+            warning_detail = f'claim={relation} {threshold:g}, canonical={canonical:.1f}'
+
+    qualitative = _direct_rsi_qualitative_claim(summary)
+    if mismatch_detail is None and qualitative:
+        claim_found = True
+        consistent = (
+            canonical >= 70 if qualitative == 'overbought'
+            else canonical <= 30
+        )
+        if not consistent:
+            mismatch_detail = f'RSI {qualitative}'
+            quality = 'RSI_SEMANTIC_MISMATCH'
+            warning_detail = f'claim={qualitative}, canonical={canonical:.1f}'
+
+    if mismatch_detail is None:
+        result['quality'] = 'OK' if claim_found else 'NO_RSI_CLAIM'
+        return result
+
+    result.update({
+        'summary': (
+            f'LLM摘要已降级：{mismatch_detail} 与主信号 RSI '
+            f'{canonical:.1f} 不一致'
+        ),
+        'raw_summary': summary,
+        'status': 'PARTIAL',
+        'quality': quality,
+        'warning': (
+            f'LLM摘要RSI不一致: {warning_detail}; 摘要降级为PARTIAL'
+        ),
+    })
+    return result
+
 def _fc_result_to_signal(fc_result: dict, market: str) -> dict:
     """将 FusionController.analyze_ticker() 输出映射为标准信号格式（v3 增强版）。"""
     fc_fusion = fc_result.get('fusion', {})
@@ -901,11 +1233,40 @@ def _fc_result_to_signal(fc_result: dict, market: str) -> dict:
     xmm_src = fc_sources.get('xmm', {})
     vp_src = fc_sources.get('vp', {})
     llm_src = fc_sources.get('llm', {})
+    llm_audit = _audit_llm_summary(
+        llm_src.get('event_summary', ''),
+        fc_result.get('rsi_daily') if 'rsi_daily' in fc_result else None,
+        fc_status.get('llm', 'SKIPPED'),
+    )
+    warnings = list(dict.fromkeys(
+        str(warning)
+        for warning in (
+            *fc_result.get('warnings', []),
+            *fc_fusion.get('warnings', []),
+            llm_audit['warning'],
+        )
+        if warning
+    ))
 
     return {
         'symbol': fc_result.get('ticker', ''),
         'market': market,
         'date': fc_result.get('date', ''),
+        'signal_asof': fc_result.get(
+            'signal_asof', fc_result.get('date', '')
+        ),
+        'bar_confirmed': fc_result.get('bar_confirmed', False),
+        'bar_finality': (
+            'COMPLETED_SESSION_ONLY'
+            if fc_result.get('bar_confirmed') is True
+            else 'UNVERIFIED'
+        ),
+        'bar_timezone': fc_result.get('bar_timezone'),
+        'incomplete_bars_excluded': fc_result.get(
+            'incomplete_bars_excluded', 0
+        ),
+        'requested_count': fc_result.get('requested_count'),
+        'returned_count': fc_result.get('returned_count'),
         'close': fc_result.get('close', 0),
         'data_source': fc_result.get('data_source', 'Fusion'),
         # 融合结果
@@ -914,13 +1275,19 @@ def _fc_result_to_signal(fc_result: dict, market: str) -> dict:
         'fusion_confidence': fc_fusion.get('confidence', 0),
         'target_position': fc_fusion.get('position_pct', fc_dir.get('target_pct', 0)),
         'risk': fc_fusion.get('risk_level', 'MEDIUM'),
-        'warnings': fc_result.get('warnings', []) + fc_fusion.get('warnings', []),
+        'warnings': warnings,
         'reasoning': fc_fusion.get('reasoning', ''),
         'rsi_daily': fc_result.get('rsi_daily', 50),
         'rsi_weekly': fc_result.get('rsi_weekly', 50),
         'market_state': fc_result.get('market_state', 'CRAB'),
         # 因子分解
         'weights_used': fc_fusion.get('weights_used', {}),
+        'reserved_weights': fc_fusion.get('reserved_weights', {}),
+        'llm_alpha_mode': fc_fusion.get('llm_alpha_mode', 'weighted'),
+        'llm_audit_score': fc_fusion.get(
+            'llm_audit_score', llm_src.get('sentiment_score', 0)
+        ),
+        'normalization_denominator': fc_fusion.get('normalization_denominator', 1.0),
         'raw_scores': fc_fusion.get('raw_scores', {}),
         # 因子详情 (v3 新增)
         'xmm_action': xmm_src.get('action', 'HOLD'),
@@ -936,9 +1303,15 @@ def _fc_result_to_signal(fc_result: dict, market: str) -> dict:
         'vp_direction': vp_src.get('direction', 'HOLD'),
         'vp_status': fc_status.get('vp', 'SKIPPED'),
         'llm_sentiment': llm_src.get('sentiment_score', 0),
-        'llm_summary': llm_src.get('event_summary', ''),
+        'llm_summary': llm_audit['summary'],
+        'llm_summary_raw': llm_audit['raw_summary'],
+        'llm_summary_quality': llm_audit['quality'],
+        'llm_summary_rsi': llm_audit['summary_rsi'],
+        'llm_model': llm_src.get('model', ''),
+        'llm_primary_model': llm_src.get('primary_model', ''),
+        'llm_route_status': llm_src.get('route_status', 'PRIMARY'),
         'llm_event_type': llm_src.get('event_type', ''),
-        'llm_status': fc_status.get('llm', 'SKIPPED'),
+        'llm_status': llm_audit['status'],
         # HardGate
         'gate_approved': fc_result.get('gate', {}).get('approved', True),
         'gate_reasons': fc_result.get('gate', {}).get('reject_reasons', []),
@@ -954,11 +1327,28 @@ def _futu_to_std(futu_code):
     return futu_code
 
 
-def _save_signals(today, market, signals, orders=None):
-    """保存信号和订单到 JSON 文件。"""
+def _save_signals(today, market, signals, orders=None,
+                  execution_mode='', execution_results=None,
+                  report_mode='', bar_finality='', execution_enabled=None,
+                  account_access=None, order_api_called=None):
+    """保存信号、候选订单和实际执行结果到 JSON 文件。"""
     sig_dir = BASE / 'paper_trading' / 'signals'
     os.makedirs(sig_dir, exist_ok=True)
     sig_file = sig_dir / f'{today}_{market}.json'
+
+    execution = {
+        'mode': execution_mode,
+        'results': [
+            dict_json_safe(result)
+            for result in (execution_results or [])
+        ],
+    }
+    if execution_enabled is not None:
+        execution['enabled'] = bool(execution_enabled)
+    if account_access is not None:
+        execution['account_access'] = bool(account_access)
+    if order_api_called is not None:
+        execution['order_api_called'] = bool(order_api_called)
 
     report = {
         'date': today,
@@ -966,6 +1356,7 @@ def _save_signals(today, market, signals, orders=None):
         'generated_at': datetime.now().isoformat(),
         'signals': [dict_json_safe(s) for s in signals],
         'orders': [dict_json_safe(o) for o in (orders or [])],
+        'execution': execution,
         'summary': {
             'total': len(signals),
             'strong_buy': sum(1 for s in signals if s['fusion_level'] == 'STRONG_BUY'),
@@ -975,6 +1366,10 @@ def _save_signals(today, market, signals, orders=None):
             'reduced': sum(1 for s in signals if s['fusion_level'] == 'REDUCED'),
         },
     }
+    if report_mode:
+        report['report_mode'] = report_mode
+    if bar_finality:
+        report['bar_finality'] = bar_finality
     with open(sig_file, 'w', encoding='utf-8') as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
     print(f'\n  信号报告: {sig_file}')
@@ -1039,14 +1434,22 @@ if __name__ == '__main__':
     parser.add_argument('--confirm-live', action='store_true',
                         help='确认实盘交易（必须与 --live 同时使用；或设置环境变量 QUANT_LIVE_CONFIRM=YES）')
     parser.add_argument('--signal-only', action='store_true', help='只生成信号，不交易')
+    parser.add_argument(
+        '--research-report', action='store_true',
+        help='仅生成已完成日线研究报告；不访问账户、持仓或订单 API',
+    )
     parser.add_argument('--no-stop', action='store_true', help='不执行止损检查')
     args = parser.parse_args()
 
     requested_live = bool(args.live)
     live_confirmed = _is_live_confirmed(args)
     dry_run = not requested_live  # default --live 时 dry_run=False
-    signal_only = args.signal_only
+    if args.research_report and (args.live or args.confirm_live):
+        parser.error('--research-report 不能与 --live/--confirm-live 同时使用')
+
+    signal_only = args.signal_only or args.research_report
     no_stop = args.no_stop
+    exit_codes = []
 
     # 警告：--confirm-live 无 --live
     if args.confirm_live and not args.live:
@@ -1059,15 +1462,27 @@ if __name__ == '__main__':
 
     if args.both:
         if is_hk_trading_day():
-            run('HK', dry_run=dry_run, signal_only=signal_only, no_stop=no_stop,
-                requested_live=requested_live, live_confirmed=live_confirmed)
+            exit_codes.append(run(
+                'HK', dry_run=dry_run, signal_only=signal_only, no_stop=no_stop,
+                requested_live=requested_live, live_confirmed=live_confirmed,
+                research_report=args.research_report,
+            ) or 0)
         if is_us_trading_day():
-            run('US', dry_run=dry_run, signal_only=signal_only, no_stop=no_stop,
-                requested_live=requested_live, live_confirmed=live_confirmed)
+            exit_codes.append(run(
+                'US', dry_run=dry_run, signal_only=signal_only, no_stop=no_stop,
+                requested_live=requested_live, live_confirmed=live_confirmed,
+                research_report=args.research_report,
+            ) or 0)
     else:
         market = args.market or get_market_to_run()
         if market == 'NONE':
             print('  今天非交易日，无需运行')
         else:
-            run(market, dry_run=dry_run, signal_only=signal_only, no_stop=no_stop,
-                requested_live=requested_live, live_confirmed=live_confirmed)
+            exit_codes.append(run(
+                market, dry_run=dry_run, signal_only=signal_only, no_stop=no_stop,
+                requested_live=requested_live, live_confirmed=live_confirmed,
+                research_report=args.research_report,
+            ) or 0)
+
+    if exit_codes and max(exit_codes):
+        raise SystemExit(max(exit_codes))

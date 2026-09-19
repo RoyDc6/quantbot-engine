@@ -173,6 +173,7 @@ class VolumeProfileBoxStrategy:
                 date=date_str,
                 signal_level="HOLD",
                 source=self.name,
+                source_status="NO_DATA",
                 warnings=[f"insufficient data: {len(df)} < {self.lookback}"]
             )
 

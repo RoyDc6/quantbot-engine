@@ -11,7 +11,7 @@ MarketEventDetector — LLM 驱动的市场情绪/事件检测器
 约束:
 - 每个标的同一天复用新鲜 LLM 缓存；美股缓存小时级过期，避免开盘扫描复用旧情绪
 - Token 控制: prompt < 500 tokens, max_tokens=400
-- 模型: meta/llama-4-maverick-17b-128e-instruct (快速 2-3s)
+- 模型名统一从 config.py 读取，主模型失败后本轮切换快速回退
 """
 
 import sys, os, json, re, time
@@ -23,11 +23,9 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config
 
-sys.path.insert(0, r'C:\Users\RoyGoode\.workbuddy\skills\nvidia-api\scripts')
-
-# 安全导入 NVIDIA NIM
+# QuantBot-owned client: independent from WorkBuddy upgrade paths.
 try:
-    from nvidia_api import nvidia_llm
+    from core.nvidia_nim_client import nvidia_llm
     NIM_AVAILABLE = True
 except ImportError:
     NIM_AVAILABLE = False
@@ -41,6 +39,19 @@ DEFAULT_CACHE_TTL_HOURS = 24
 MARKET_CACHE_TTL_HOURS = {
     'US': 2,       # US 盘前/开盘扫描必须刷新小时级情绪，避免复用数小时前缓存
 }
+DEFAULT_NIM_CHAT_TIMEOUT_SECONDS = 15.0
+DEFAULT_NIM_RETRY_TIMEOUT_SECONDS = 4.0
+# Bump when prompt input semantics change so same-day disk caches cannot retain
+# outputs produced from an obsolete indicator definition.
+PRICE_PROMPT_VERSION = 'rsi-canonical-v2-model-route'
+
+
+def _positive_float(value, default):
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return default
+    return result if result > 0 else default
 
 
 class MarketEventDetector:
@@ -53,17 +64,135 @@ class MarketEventDetector:
     - 输出经过 FusionEngine/HardGate 纯规则后才到执行层
     """
 
-    def __init__(self, model=None, cache_ttl_hours=None, market_cache_ttl_hours=None):
+    def __init__(self, model=None, fallback_model=None, cache_ttl_hours=None,
+                 market_cache_ttl_hours=None, llm_timeout_seconds=None,
+                 llm_retry_timeout_seconds=None):
         self.model = model or config.LLM_MODEL
+        configured_fallback = getattr(config, 'LLM_FALLBACK_MODEL', '')
+        self.fallback_model = (
+            configured_fallback if fallback_model is None else fallback_model
+        )
+        if self.fallback_model == self.model:
+            self.fallback_model = ''
+        self._primary_model_unhealthy = False
+        self._primary_failure_reason = ''
+        self._retired_model_errors = {}  # Per batch: never retry an HTTP 410 endpoint.
         self._cache = {}  # {symbol+date: result}
         self.cache_ttl_hours = cache_ttl_hours or DEFAULT_CACHE_TTL_HOURS
         self.market_cache_ttl_hours = {
             **MARKET_CACHE_TTL_HOURS,
             **(market_cache_ttl_hours or {}),
         }
+        self.llm_timeout_seconds = _positive_float(
+            llm_timeout_seconds,
+            _positive_float(
+                os.environ.get('QUANTBOT_NIM_TIMEOUT_SECONDS'),
+                DEFAULT_NIM_CHAT_TIMEOUT_SECONDS,
+            ),
+        )
+        self.llm_retry_timeout_seconds = _positive_float(
+            llm_retry_timeout_seconds,
+            _positive_float(
+                os.environ.get('QUANTBOT_NIM_RETRY_TIMEOUT_SECONDS'),
+                DEFAULT_NIM_RETRY_TIMEOUT_SECONDS,
+            ),
+        )
 
-    def _cache_key(self, symbol, date):
-        return f'{symbol}_{date}'
+    def _chat_nim(self, prompt, *, model=None, max_tokens=200,
+                  temperature=0.5, retry=False):
+        """Call NVIDIA NIM with a QuantBot-level fast-fail timeout."""
+        model = model or self._active_model()
+        if model in self._retired_model_errors:
+            return self._retired_model_errors[model]
+        timeout = (
+            self.llm_retry_timeout_seconds
+            if retry else self.llm_timeout_seconds
+        )
+        kwargs = {
+            'model': model,
+            'max_tokens': max_tokens,
+            'temperature': temperature,
+            'timeout': timeout,
+            'response_format': {'type': 'json_object'},
+            'chat_template_kwargs': {'enable_thinking': False},
+        }
+        reply = nvidia_llm.chat(prompt, **kwargs)
+        if isinstance(reply, str) and re.match(r'^\[ERROR 410\]', reply):
+            self._retired_model_errors[model] = reply
+        return reply
+
+    def _active_model(self):
+        if self._primary_model_unhealthy and self.fallback_model:
+            return self.fallback_model
+        return self.model
+
+    def _route_status(self, model_used=None):
+        """Only label an actual circuit-breaker route as FALLBACK."""
+        actual = model_used or self._active_model()
+        if (
+            self._primary_model_unhealthy
+            and self.fallback_model
+            and actual == self.fallback_model
+        ):
+            return 'FALLBACK'
+        return 'PRIMARY'
+
+    def _chat_with_fallback(self, prompt, *, max_tokens=200,
+                            temperature=0.5, retry=False):
+        """Call the active model and trip a run-level circuit on primary API failure."""
+        model_used = self._active_model()
+        routing_warnings = []
+        if self._primary_model_unhealthy and model_used == self.fallback_model:
+            routing_warnings.append(
+                f'LLM本轮使用回退模型: {self.fallback_model} '
+                f'(主模型原因: {self._primary_failure_reason})'
+            )
+        try:
+            reply = self._chat_nim(
+                prompt,
+                model=model_used,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                retry=retry,
+            )
+        except Exception as exc:
+            reply = f'[ERROR] {exc}'
+
+        parsed, raw_text = self._normalize_reply(reply)
+        api_error = self._api_error_detail(parsed, raw_text)
+        if api_error and model_used == self.model and self.fallback_model:
+            primary_reason = self._format_api_error(api_error)
+            self._primary_model_unhealthy = True
+            self._primary_failure_reason = primary_reason
+            routing_warnings.append(
+                f'LLM主模型失败，本轮切换回退: '
+                f'{self.model} -> {self.fallback_model} ({primary_reason})'
+            )
+            model_used = self.fallback_model
+            try:
+                reply = self._chat_nim(
+                    prompt,
+                    model=model_used,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    retry=retry,
+                )
+            except Exception as exc:
+                reply = f'[ERROR] {exc}'
+
+        return reply, model_used, routing_warnings
+
+    def _cache_key(self, symbol, date, context=None):
+        key = f'{symbol}_{date}'
+        if context:
+            safe_context = re.sub(r'[^A-Za-z0-9_.-]+', '-', str(context))
+            key = f'{key}_{safe_context}'
+        # 模型名参与缓存 key：切换主模型后旧缓存自动失效，
+        # 避免复用旧模型（或已 EOL fallback）产出的情绪结果。
+        model_slug = re.sub(r'[^A-Za-z0-9_.-]+', '-', str(self.model or ''))
+        if model_slug:
+            key = f'{key}_{model_slug}'
+        return key
 
     @staticmethod
     def _symbol_market(symbol):
@@ -101,9 +230,9 @@ class MarketEventDetector:
             return False
         return age_hours <= self._cache_ttl_hours(symbol)
 
-    def _load_cache(self, symbol, date, allow_stale=False):
+    def _load_cache(self, symbol, date, allow_stale=False, context=None):
         """从磁盘缓存加载；默认只返回仍在 TTL 内的新鲜缓存。"""
-        key = self._cache_key(symbol, date)
+        key = self._cache_key(symbol, date, context=context)
         if key in self._cache:
             result = self._cache[key]
             if allow_stale or self._cache_is_fresh(symbol, result):
@@ -121,9 +250,9 @@ class MarketEventDetector:
                 pass
         return None
 
-    def _save_cache(self, symbol, date, result):
+    def _save_cache(self, symbol, date, result, context=None):
         """保存到磁盘缓存"""
-        key = self._cache_key(symbol, date)
+        key = self._cache_key(symbol, date, context=context)
         self._cache[key] = result
         cache_file = CACHE_DIR / f'{key}.json'
         try:
@@ -158,16 +287,15 @@ class MarketEventDetector:
         # 振幅（基于展示窗口）
         amplitude = [(h[i]-l[i])/c[i]*100 for i in range(len(c))]
 
-        # ── RSI 14: 使用独立的、更长的数据窗口计算（至少 30 根 K 线）──
-        # 与展示窗口的 lookback 分离，确保 RSI 计算精度
-        rsi_window = min(30, len(close))       # 最多用 30 根（足够稳定），最少用 len(close)
-        c_rsi = [float(x) for x in close[-rsi_window:]]
-        rets_rsi = [(c_rsi[i]/c_rsi[i-1]-1)*100 for i in range(1, len(c_rsi))]
-        gains = [max(0, r) for r in rets_rsi]
-        losses = [max(0, -r) for r in rets_rsi]
-        avg_gain = np.mean(gains[-14:]) if len(gains) >= 14 else np.mean(gains)
-        avg_loss = np.mean(losses[-14:]) if len(losses) >= 14 else np.mean(losses)
-        rsi = 100 - 100 / (1 + avg_gain / (avg_loss + 1e-10))
+        # RSI 不在此处重复计算。上游 FusionController 提供主信号使用的
+        # Wilder RSI，避免同一批 K 线因公式/窗口不同产生两套指标口径。
+        canonical_rsi = price_data.get('rsi_daily')
+        try:
+            canonical_rsi = float(canonical_rsi)
+        except (TypeError, ValueError):
+            canonical_rsi = None
+        if canonical_rsi is not None and not 0 <= canonical_rsi <= 100:
+            canonical_rsi = None
 
         # 组装摘要
         lines = []
@@ -175,7 +303,8 @@ class MarketEventDetector:
         lines.append(f'近5日涨跌: {[round(r,2) for r in rets[-5:]]}' if len(rets)>=5 else f'涨跌: {[round(r,2) for r in rets]}')
         lines.append(f'最新量比: {vol_ratio:.2f}x')
         lines.append(f'最新振幅: {amplitude[-1]:.2f}%')
-        lines.append(f'RSI14: {rsi:.1f}')
+        if canonical_rsi is not None:
+            lines.append(f'RSI14: {canonical_rsi:.1f}')
 
         # 连涨/连跌天数（基于展示窗口）
         streak = 0
@@ -252,8 +381,23 @@ class MarketEventDetector:
         )
         if any(m in lower for m in markers):
             compact = re.sub(r'\s+', ' ', text).strip()
-            return compact[:160] or 'api error'
+            return compact[:500] or 'api error'
         return ''
+
+    @staticmethod
+    def _format_api_error(api_error) -> str:
+        """将冗长 NIM 错误压缩为保留超时参数的稳定诊断。"""
+        text = re.sub(r'\s+', ' ', str(api_error or '')).strip()
+        timeout = re.search(
+            r'(?:read\s+)?timeout(?:\s*=|\s+)(\d+(?:\.\d+)?)',
+            text,
+            flags=re.IGNORECASE,
+        )
+        if timeout:
+            return f'NVIDIA NIM 请求超时（{timeout.group(1)}s）'
+        if 'timed out' in text.lower() or 'timeout' in text.lower():
+            return 'NVIDIA NIM 请求超时'
+        return f'NVIDIA NIM API错误：{text[:160] or "未知错误"}'
 
     @staticmethod
     def _normalize_reply(reply):
@@ -285,6 +429,14 @@ class MarketEventDetector:
             return 'PARTIAL', [f'LLM解析不完整: 缺少 {",".join(missing)}']
         return 'OK', []
 
+    @staticmethod
+    def _normalize_event_type(value):
+        event_type = str(value or 'none').strip().lower()
+        allowed = {'none', 'momentum_shift', 'volume_anomaly', 'reversal_signal', 'breakout'}
+        if event_type in allowed:
+            return event_type, None
+        return 'none', f'LLM event_type 非标准: {event_type} -> none'
+
     def analyze_sentiment(self, symbol: str, price_data: dict,
                           recent_signals: list = None,
                           market_state: str = 'CRAB',
@@ -308,10 +460,12 @@ class MarketEventDetector:
             - llm_raw: str (审计用)
         """
         today = datetime.now().strftime('%Y-%m-%d')
+        data_asof = str(price_data.get('signal_asof') or today)
+        cache_context = f'{market_state}_{data_asof}_{PRICE_PROMPT_VERSION}'
 
         # 缓存检查
         if not force:
-            cached = self._load_cache(symbol, today)
+            cached = self._load_cache(symbol, today, context=cache_context)
             if cached:
                 return cached
 
@@ -322,6 +476,9 @@ class MarketEventDetector:
             'event_summary': 'LLM 检测未执行',
             'confidence': 0.0,
             'llm_raw': '',
+            'llm_model': self._active_model(),
+            'llm_primary_model': self.model,
+            'route_status': self._route_status(),
             'parse_status': 'SKIPPED',
             'warnings': [],
             'timestamp': datetime.now().isoformat(),
@@ -334,44 +491,31 @@ class MarketEventDetector:
         # 构建 prompt
         price_summary = self._build_price_summary(price_data)
         signal_summary = self._build_signal_summary(recent_signals or [])
+        regime_guidance = (
+            ' CRAB means neutral and range-bound, not bearish.'
+            if market_state == 'CRAB' else ''
+        )
+        crab_constraint = (
+            ' Keep CRAB scores within [-30, 30] unless there is a structural breakout.'
+            if market_state == 'CRAB' else ''
+        )
 
-        prompt = f"""You are a strict, objective Quantitative Market Analyst. Evaluate the short-term sentiment and momentum of the following asset based ONLY on the provided data.
-
-Asset: {symbol}
-Current Market Regime: {market_state}
-
-Regime Definition:
-- If regime is 'CRAB', the market is range-bound and mean-reverting. Do NOT interpret 'CRAB' as a bearish or negative signal. It implies low volatility and neutral baseline sentiment.
-
-Recent Price Action (Last 10 bars):
-{price_summary}
-
-Recent Signal History:
-{signal_summary}
-
-Instructions:
-You must perform an evidence-based evaluation before scoring. 
-1. Identify bullish evidence (e.g., oversold RSI, support held).
-2. Identify bearish evidence (e.g., consecutive drops, moving average breakdown).
-3. If the market is in 'CRAB' regime, your sentiment_score MUST be tightly bounded within [-30, +30] UNLESS there is overwhelming evidence of a volume anomaly or structural breakout.
-
-Output format MUST be valid JSON only (no markdown blocks, no extra text):
-{{
-  "bullish_factors": "briefly list positive signals",
-  "bearish_factors": "briefly list negative signals",
-  "sentiment_score": integer between -100 and +100,
-  "event_type": "none | momentum_shift | volume_anomaly | reversal_signal | breakout",
-  "summary": "One sentence strictly summarizing the weight of evidence.",
-  "confidence": integer between 0 and 100
-}}"""
+        prompt = f"""JSON ONLY. Your first character must be {{ and your last character must be }}.
+Do not explain, reason, or use markdown. Evaluate internally from the supplied evidence.
+Asset: {symbol}; regime: {market_state}.{regime_guidance}
+Price data: {price_summary}
+Recent signals: {signal_summary}
+Treat supplied indicator values as authoritative; do not recalculate or invent them.
+Return exactly: {{"sentiment_score": 0, "event_type": "none", "summary": "under 20 words", "confidence": 50}}
+Replace the example values with your assessment. Valid event_type values: none, momentum_shift, volume_anomaly, reversal_signal, breakout.
+{crab_constraint} Keep the response under 80 words."""
 
         try:
             t0 = time.time()
-            reply = nvidia_llm.chat(
+            reply, model_used, routing_warnings = self._chat_with_fallback(
                 prompt,
-                model=self.model,
-                max_tokens=400,
-                temperature=0.5
+                max_tokens=160,
+                temperature=0.0
             )
             elapsed = time.time() - t0
 
@@ -379,40 +523,113 @@ Output format MUST be valid JSON only (no markdown blocks, no extra text):
             parsed, raw_text = self._normalize_reply(reply)
             api_error = self._api_error_detail(parsed, raw_text)
             if api_error:
+                error_summary = self._format_api_error(api_error)
                 default_result['llm_raw'] = raw_text[:500]
-                default_result['event_summary'] = f'API 错误: {api_error[:80]}'
+                default_result['event_summary'] = error_summary
+                default_result['llm_model'] = model_used
+                default_result['route_status'] = self._route_status(model_used)
+                default_result['warnings'].extend(routing_warnings)
+                default_result['warnings'].append(error_summary)
                 return default_result
 
-            if parsed and isinstance(parsed, dict):
+            required_fields = ('sentiment_score', 'event_type', 'summary', 'confidence')
+            if isinstance(parsed, dict):
                 parse_status, parse_warnings = self._sentiment_parse_status(parsed)
+            else:
+                parse_status = 'ERROR'
+                parse_warnings = ['LLM JSON 解析失败']
+            parse_warnings = [*routing_warnings, *parse_warnings]
+
+            if parse_status != 'OK':
+                retry_prompt = f"""JSON ONLY. Your first character must be {{ and your last character must be }}.
+Do not explain, reason, or use markdown.
+Asset: {symbol}; regime: {market_state}.{regime_guidance}
+Data: {price_summary}
+Treat supplied indicator values as authoritative; do not recalculate or invent them.
+Return exactly: {{"sentiment_score": 0, "event_type": "none", "summary": "under 20 words", "confidence": 50}}
+Replace the example values with your assessment.{crab_constraint} Keep the response under 80 words."""
+                retry_reply = self._chat_nim(
+                    retry_prompt,
+                    model=model_used,
+                    max_tokens=140,
+                    temperature=0.0,
+                    retry=True,
+                )
+                retry_parsed, retry_raw = self._normalize_reply(retry_reply)
+                retry_error = self._api_error_detail(retry_parsed, retry_raw)
+                if not retry_error and isinstance(retry_parsed, dict):
+                    retry_status, retry_warnings = self._sentiment_parse_status(retry_parsed)
+                    current_completeness = sum(
+                        parsed.get(key) not in (None, '') for key in required_fields
+                    ) if isinstance(parsed, dict) else 0
+                    retry_completeness = sum(
+                        retry_parsed.get(key) not in (None, '') for key in required_fields
+                    )
+                    if retry_status == 'OK' or retry_completeness > current_completeness:
+                        first_status = parse_status
+                        parsed = retry_parsed
+                        raw_text = retry_raw
+                        parse_status = retry_status
+                        parse_warnings = [*routing_warnings, *retry_warnings]
+                        if retry_status == 'OK':
+                            parse_warnings.append(f'LLM首次响应{first_status}，紧凑重试成功')
+                        else:
+                            parse_warnings.append('LLM紧凑重试仍不完整')
+                    else:
+                        parse_warnings.append('LLM紧凑重试未改善')
+                else:
+                    parse_warnings.append('LLM紧凑重试失败')
+                elapsed = time.time() - t0
+
+            if parsed and isinstance(parsed, dict):
                 event_summary = parsed.get('summary', '')
                 if parse_status == 'PARTIAL' and not event_summary:
                     event_summary = 'LLM 解析不完整: summary 为空'
+                event_type, event_warning = self._normalize_event_type(parsed.get('event_type', 'none'))
+                if event_warning:
+                    parse_warnings.append(event_warning)
                 result = {
                     'sentiment_score': float(parsed.get('sentiment_score', 0)),
-                    'event_type': parsed.get('event_type', 'none'),
+                    'event_type': event_type,
                     'event_summary': event_summary,
                     'confidence': self._normalize_confidence(parsed.get('confidence', 0.5)),
                     'llm_raw': raw_text[:500],
-                    'llm_model': self.model,
+                    'llm_model': model_used,
+                    'llm_primary_model': self.model,
+                    'route_status': self._route_status(model_used),
                     'llm_latency_ms': int(elapsed * 1000),
                     'parse_status': parse_status,
                     'warnings': parse_warnings,
                     'timestamp': datetime.now().isoformat(),
+                    'market_state': market_state,
+                    'signal_asof': data_asof,
                 }
                 # 限制范围
                 result['sentiment_score'] = max(-100, min(100, result['sentiment_score']))
 
-                self._save_cache(symbol, today, result)
+                self._save_cache(symbol, today, result, context=cache_context)
                 return result
             else:
                 default_result['llm_raw'] = raw_text[:500]
                 default_result['event_summary'] = 'JSON 解析失败 (增强解析器 v3 无法提取)'
+                default_result['parse_status'] = 'ERROR'
+                default_result['warnings'] = parse_warnings
                 return default_result
 
         except Exception as e:
-            default_result['event_summary'] = f'LLM 调用失败: {str(e)[:80]}'
+            error_summary = self._format_api_error(e)
+            default_result['event_summary'] = error_summary
             default_result['llm_raw'] = str(e)[:500]
+            default_result['llm_model'] = locals().get(
+                'model_used', self._active_model()
+            )
+            default_result['route_status'] = self._route_status(
+                default_result['llm_model']
+            )
+            default_result['warnings'].extend(
+                locals().get('routing_warnings', [])
+            )
+            default_result['warnings'].append(error_summary)
             return default_result
 
     def analyze_batch_sentiment(self, tickers_data: list,
@@ -426,7 +643,7 @@ Output format MUST be valid JSON only (no markdown blocks, no extra text):
                 - symbol: str (e.g. '00700.HK')
                 - market_state: str (e.g. 'BULL')
                 - price_summary: str (pre-built by _build_price_summary())
-            model: LLM model (default: llama-4-maverick for speed)
+            model: explicit LLM model override; default uses configured primary/fallback
             batch_size: max tickers per API call (default 11)
 
         Returns:
@@ -435,7 +652,8 @@ Output format MUST be valid JSON only (no markdown blocks, no extra text):
         if not NIM_AVAILABLE or not tickers_data:
             return {}
 
-        model = model or config.LLM_MODEL  # ⛔ 锁定 L-001
+        requested_model = model
+        model = model or self._active_model()
         today = datetime.now().strftime('%Y-%m-%d')
         all_results = {}
 
@@ -447,7 +665,12 @@ Output format MUST be valid JSON only (no markdown blocks, no extra text):
             uncached = []
             for td in batch:
                 sym = td['symbol']
-                cached = self._load_cache(f'BATCH_{sym}', today)
+                state = td.get('market_state', 'CRAB')
+                data_asof = td.get('signal_asof', today)
+                cache_context = f'{state}_{data_asof}_{PRICE_PROMPT_VERSION}'
+                cached = self._load_cache(
+                    f'BATCH_{sym}', today, context=cache_context
+                )
                 if cached:
                     all_results[sym] = cached
                 else:
@@ -506,12 +729,21 @@ CSV输入格式: symbol,market_state,close,ret_5d(近5日涨跌%),rsi14,vol_rati
             # API 调用
             try:
                 t0 = time.time()
-                reply = nvidia_llm.chat(
-                    prompt,
-                    model=model,
-                    max_tokens=800,
-                    temperature=0.5
-                )
+                if requested_model is None:
+                    reply, model_used, routing_warnings = self._chat_with_fallback(
+                        prompt,
+                        max_tokens=800,
+                        temperature=0.5,
+                    )
+                else:
+                    reply = self._chat_nim(
+                        prompt,
+                        model=model,
+                        max_tokens=800,
+                        temperature=0.5,
+                    )
+                    model_used = model
+                    routing_warnings = []
                 elapsed = time.time() - t0
 
                 # 批量响应可能超过 500 字符（5 tickers × ~150 chars = ~750）
@@ -559,20 +791,34 @@ CSV输入格式: symbol,market_state,close,ret_5d(近5日涨跌%),rsi14,vol_rati
                         event_summary = item.get('summary', '')
                         if parse_status == 'PARTIAL' and not event_summary:
                             event_summary = 'LLM 解析不完整: summary 为空'
+                        event_type, event_warning = self._normalize_event_type(item.get('event_type', 'none'))
+                        if event_warning:
+                            parse_warnings.append(event_warning)
                         result = {
                             'sentiment_score': float(item.get('sentiment_score', 0)),
-                            'event_type': item.get('event_type', 'none'),
+                            'event_type': event_type,
                             'event_summary': event_summary,
                             'confidence': self._normalize_confidence(item.get('confidence', 0.5)),
                             'llm_raw': raw_text[:500],
-                            'llm_model': model,
+                            'llm_model': model_used,
+                            'llm_primary_model': self.model,
+                            'route_status': self._route_status(model_used),
                             'llm_latency_ms': int(elapsed * 1000),
                             'parse_status': parse_status,
-                            'warnings': parse_warnings,
+                            'warnings': [*routing_warnings, *parse_warnings],
                             'timestamp': datetime.now().isoformat(),
+                            'market_state': td.get('market_state', 'CRAB'),
+                            'signal_asof': td.get('signal_asof', today),
                         }
                         result['sentiment_score'] = max(-100, min(100, result['sentiment_score']))
-                        self._save_cache(f'BATCH_{sym}', today, result)
+                        cache_context = (
+                            f'{td.get("market_state", "CRAB")}_'
+                            f'{td.get("signal_asof", today)}_'
+                            f'{PRICE_PROMPT_VERSION}'
+                        )
+                        self._save_cache(
+                            f'BATCH_{sym}', today, result, context=cache_context
+                        )
                         all_results[sym] = result
                     else:
                         # 该标的不在返回中 → 单独调用回退
@@ -599,6 +845,9 @@ CSV输入格式: symbol,market_state,close,ret_5d(近5日涨跌%),rsi14,vol_rati
                             'sentiment_score': 0.0, 'event_type': 'none',
                             'event_summary': f'批量+单只兜底均失败: {str(e)[:50]}',
                             'confidence': 0.0, 'llm_raw': str(e)[:200],
+                            'llm_model': self._active_model(),
+                            'llm_primary_model': self.model,
+                            'route_status': self._route_status(),
                             'parse_status': 'ERROR',
                             'warnings': [f'LLM批量解析失败: {str(e)[:60]}'],
                             'timestamp': datetime.now().isoformat(),
@@ -665,9 +914,8 @@ CSV输入格式: symbol,market_state,close,ret_5d(近5日涨跌%),rsi14,vol_rati
 
         try:
             t0 = time.time()
-            reply = nvidia_llm.chat(
+            reply, model_used, routing_warnings = self._chat_with_fallback(
                 prompt,
-                model=self.model,
                 max_tokens=200,
                 temperature=0.5
             )
@@ -678,6 +926,13 @@ CSV输入格式: symbol,market_state,close,ret_5d(近5日涨跌%),rsi14,vol_rati
             if api_error:
                 default_result['llm_raw'] = raw_text[:500]
                 default_result['narrative_regime'] = 'unknown'
+                default_result['llm_model'] = model_used
+                default_result['llm_primary_model'] = self.model
+                default_result['route_status'] = self._route_status(model_used)
+                default_result['warnings'] = [
+                    *routing_warnings,
+                    self._format_api_error(api_error),
+                ]
                 return default_result
 
             if parsed and isinstance(parsed, dict):
@@ -687,8 +942,11 @@ CSV输入格式: symbol,market_state,close,ret_5d(近5日涨跌%),rsi14,vol_rati
                     'narrative_score': float(parsed.get('narrative_score', 0)),
                     'confidence': float(parsed.get('confidence', 0.5)),
                     'llm_raw': raw_text[:500],
-                    'llm_model': self.model,
+                    'llm_model': model_used,
+                    'llm_primary_model': self.model,
+                    'route_status': self._route_status(model_used),
                     'llm_latency_ms': int(elapsed * 1000),
+                    'warnings': routing_warnings,
                     'timestamp': datetime.now().isoformat(),
                 }
                 result['narrative_score'] = max(-100, min(100, result['narrative_score']))

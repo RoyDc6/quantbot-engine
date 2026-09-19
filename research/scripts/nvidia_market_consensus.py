@@ -22,15 +22,18 @@ import json
 import time
 import argparse
 from datetime import datetime
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.path.insert(0, r'C:\Users\RoyGoode\.workbuddy\skills\nvidia-api\scripts')
 from nvidia_api import nvidia_llm
+import config
 
 # ============================================================
 # Top 5 LLMs (速度+质量最优组合, 基于 2026-05-17 测速)
 # ============================================================
 TOP5_MODELS = [
-    {"id": "mistralai/mistral-small-4-119b-2603",   "name": "Mistral-119B", "weight": 1.0,  "avg_latency": 3.1},
+    {"id": config.LLM_MODEL,                          "name": "QuantBot-Primary", "weight": 1.0, "avg_latency": 1.4},
     {"id": "qwen/qwen3-next-80b-a3b-instruct",       "name": "Qwen3-80B",    "weight": 0.95, "avg_latency": 6.5},
     {"id": "meta/llama-4-maverick-17b-128e-instruct", "name": "Llama4-17B",   "weight": 0.85, "avg_latency": 7.0},
     {"id": "meta/llama-3.3-70b-instruct",             "name": "Llama3.3-70B", "weight": 0.80, "avg_latency": 5.5},

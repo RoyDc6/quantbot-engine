@@ -100,6 +100,14 @@ BASE_WEIGHTS: Dict[str, float] = {
     'llm': 0.15,
 }
 
+LLM_ALPHA_MODE_AUDIT_ONLY = 'audit_only'
+LLM_ALPHA_MODE_WEIGHTED = 'weighted'
+DEFAULT_LLM_ALPHA_MODE = LLM_ALPHA_MODE_AUDIT_ONLY
+VALID_LLM_ALPHA_MODES = {
+    LLM_ALPHA_MODE_AUDIT_ONLY,
+    LLM_ALPHA_MODE_WEIGHTED,
+}
+
 
 # ═══════════════════════════════════════════════════════════════
 # 信号源状态标记
@@ -108,10 +116,12 @@ BASE_WEIGHTS: Dict[str, float] = {
 class SourceStatus:
     """信号源运行状态。"""
     OK = 'OK'
+    FALLBACK = 'FALLBACK' # 主源失败，健康回退源成功
     SKIPPED = 'SKIPPED'   # 未配置/未启用
     ERROR = 'ERROR'       # 执行异常
     NO_DATA = 'NO_DATA'   # 数据不足
     NEUTRAL = 'NEUTRAL'   # 返回中性信号
+    PARTIAL = 'PARTIAL'   # 仅部分解析成功，不参与实盘融合
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -138,6 +148,14 @@ class FusionController:
         """
         self.config = config or {}
         # 权重硬编码为常量 BASE_WEIGHTS，不由 config 覆盖
+        self.llm_alpha_mode = str(
+            self.config.get('llm_alpha_mode', DEFAULT_LLM_ALPHA_MODE)
+        ).strip().lower()
+        if self.llm_alpha_mode not in VALID_LLM_ALPHA_MODES:
+            raise ValueError(
+                f'无效 llm_alpha_mode={self.llm_alpha_mode!r}; '
+                f'允许值: {sorted(VALID_LLM_ALPHA_MODES)}'
+            )
 
         # 初始化底层基建
         self.universe = UniverseManager()
@@ -246,6 +264,27 @@ class FusionController:
 
         results['close'] = float(df['close'].iloc[-1])
         results['data_source'] = df.attrs.get('source', 'Futu')
+        if df.attrs.get('signal_asof'):
+            results['date'] = df.attrs['signal_asof']
+            results['signal_asof'] = df.attrs['signal_asof']
+        for attr_name in (
+            'bar_confirmed',
+            'bar_timezone',
+            'incomplete_bars_excluded',
+            'requested_count',
+            'returned_count',
+        ):
+            if attr_name in df.attrs:
+                results[attr_name] = df.attrs[attr_name]
+
+        if ticker.endswith(('.USDT', '.USDC', '.USD')) and not df.attrs.get('bar_confirmed', False):
+            results['errors'].append('Crypto 日线确认状态缺失，信号暂停')
+            results['directive'] = {
+                'action': 'HOLD',
+                'reason': 'Crypto 日线未确认或无法验证',
+                'target_pct': 0.0,
+            }
+            return results
 
         # ─── 数据新鲜度检测 ────────────────────────────────────
         stale_days = df.attrs.get('stale_days', 0)
@@ -321,8 +360,9 @@ class FusionController:
                         'val': vp_signal.factor_details.get('VAL', 0),
                         'poc': vp_signal.factor_details.get('POC', 0),
                         'va_width': vp_signal.factor_details.get('va_width', 0),
+                        'warnings': list(getattr(vp_signal, 'warnings', []) or []),
                     }
-                    vp_status = SourceStatus.OK
+                    vp_status = self._decision_signal_status(vp_signal)
                 else:
                     vp_status = SourceStatus.NO_DATA
             except Exception as e:
@@ -341,6 +381,10 @@ class FusionController:
                     'high': df['high'].values.astype(float).tolist(),
                     'low': df['low'].values.astype(float).tolist(),
                     'volume': df['volume'].values.astype(float).tolist(),
+                    # Single source of truth: the LLM prompt must use the same
+                    # Wilder RSI already computed for the primary signal.
+                    'rsi_daily': results['rsi_daily'],
+                    'signal_asof': results.get('signal_asof', results['date']),
                 }
                 llm_signal = self.llm.generator(
                     ticker=ticker,
@@ -355,9 +399,16 @@ class FusionController:
                         'signal_level': llm_signal.signal_level,
                         'event_type': llm_signal.event_type,
                         'event_summary': llm_signal.event_summary,
+                        'model': getattr(llm_signal, 'llm_model', ''),
+                        'primary_model': getattr(
+                            llm_signal, 'llm_primary_model', ''
+                        ),
+                        'route_status': getattr(
+                            llm_signal, 'llm_route_status', 'PRIMARY'
+                        ),
                         'warnings': llm_signal.warnings if hasattr(llm_signal, 'warnings') else [],
                     }
-                    llm_status = SourceStatus.OK
+                    llm_status = self._decision_signal_status(llm_signal)
                 else:
                     llm_status = SourceStatus.NO_DATA
             except Exception as e:
@@ -367,11 +418,29 @@ class FusionController:
         results['status']['llm'] = llm_status
 
         # 3. 检查各源有效状态
-        active_weights = self._compute_active_weights(weights, results['status'])
+        weight_status = results['status']
+
+        # Shadow A: LLM 保留原始输出供审计，但不作为 alpha 进入融合。
+        # 即使 LLM 异常/跳过，也保留其份额，避免状态变化静默放大 XMM/VP。
+        if self.llm_alpha_mode == LLM_ALPHA_MODE_AUDIT_ONLY:
+            weight_status = dict(results['status'])
+            weight_status['llm'] = SourceStatus.NEUTRAL
+        active_weights = self._compute_active_weights(weights, weight_status)
+
+        fusion_denominator = None
+        llm_reserved_weight = 0.0
+        if self.llm_alpha_mode == LLM_ALPHA_MODE_AUDIT_ONLY:
+            fusion_denominator = sum(active_weights.values())
+            llm_reserved_weight = active_weights.get('llm', 0.0)
+            active_weights = dict(active_weights)
+            active_weights['llm'] = 0.0
 
         # 4. 融合信号
         fusion = self._fuse_signals(xmm_result, vp_result, llm_result,
-                                    active_weights, date, ticker)
+                                    active_weights, date, ticker,
+                                    normalization_denominator=fusion_denominator,
+                                    llm_alpha_mode=self.llm_alpha_mode,
+                                    llm_reserved_weight=llm_reserved_weight)
 
         # ─── 数据滞后的置信度惩罚 ────────────────────────────
         stale_days = results.get('stale_days', 0)
@@ -407,6 +476,10 @@ class FusionController:
         if llm_status == SourceStatus.ERROR:
             results['warnings'].append('LLM模型异常降级')
 
+        for source_name, source_result in (('VP', vp_result), ('LLM', llm_result)):
+            for warning in source_result.get('warnings', []):
+                results['warnings'].append(f'{source_name}: {warning}')
+
         return results
 
     def scan_market(self, market: str = 'HK',
@@ -435,7 +508,7 @@ class FusionController:
         if max_tickers:
             symbols = symbols[:max_tickers]
 
-        print(f'🔄 FusionController 扫描 {market} 市场 ({len(symbols)} 标的)...')
+        print(f'[SCAN] FusionController 扫描 {market} 市场 ({len(symbols)} 标的)...')
         print(f'   市场状态: {market_state} | VIX: {vix_regime}')
         print()
 
@@ -454,10 +527,10 @@ class FusionController:
                 results.append(result)
                 fusion = result.get('fusion', {})
                 gate = result.get('gate', {})
-                print(f'→ {fusion.get("level", "HOLD")} (score={fusion.get("score", 0):+.1f})'
+                print(f'-> {fusion.get("level", "HOLD")} (score={fusion.get("score", 0):+.1f})'
                       f'  gate={gate.get("approved", False)}')
             except Exception as e:
-                print(f'→ FAILED: {e}')
+                print(f'-> FAILED: {e}')
                 results.append({
                     'ticker': sym,
                     'date': datetime.now().strftime('%Y-%m-%d'),
@@ -466,8 +539,9 @@ class FusionController:
 
             # 限流保护
             if i < len(symbols) - 1:
-                delay = 5 if market == 'HK' else 2
-                time.sleep(delay)
+                delay = 5 if market == 'HK' else (0.2 if market == 'Crypto' else 2)
+                if delay > 0:
+                    time.sleep(delay)
 
         # 排序
         if sort_by == 'fusion_score':
@@ -561,6 +635,28 @@ class FusionController:
         """返回静态 BASE_WEIGHTS（60/25/15，不随市场状态变化）。"""
         return dict(BASE_WEIGHTS)
 
+    def detect_crypto_market_state(self) -> dict:
+        """根据 BTC 已收盘日线检测 Crypto 市场状态。"""
+        result = {
+            'state': 'CRAB',
+            'source': 'fallback_crab',
+            'signal_asof': None,
+        }
+        try:
+            from market_state.classifier import classify_crypto_state
+
+            df = self._fetch_kline('BTC.USDT')
+            if df is None or len(df) < 60 or not df.attrs.get('bar_confirmed', False):
+                return result
+            result.update({
+                'state': classify_crypto_state(df),
+                'source': 'BTC.USDT_completed_daily',
+                'signal_asof': df.attrs.get('signal_asof'),
+            })
+        except Exception:
+            pass
+        return result
+
     def _compute_active_weights(self, weights: Dict[str, float],
                                 status: Dict[str, str]) -> Dict[str, float]:
         """
@@ -572,7 +668,11 @@ class FusionController:
 
         for src in ('xmm', 'vp', 'llm'):
             s = status.get(src, SourceStatus.SKIPPED)
-            if s in (SourceStatus.OK, SourceStatus.NEUTRAL):
+            if s in (
+                SourceStatus.OK,
+                SourceStatus.FALLBACK,
+                SourceStatus.NEUTRAL,
+            ):
                 active[src] = weights.get(src, 0.0)
                 total += active[src]
             else:
@@ -589,9 +689,27 @@ class FusionController:
 
         return active
 
+    @staticmethod
+    def _decision_signal_status(signal) -> str:
+        """Normalize a DecisionSignal quality status for fusion weighting."""
+        status = str(getattr(signal, 'source_status', SourceStatus.OK) or SourceStatus.OK).upper()
+        valid = {
+            SourceStatus.OK,
+            SourceStatus.FALLBACK,
+            SourceStatus.SKIPPED,
+            SourceStatus.ERROR,
+            SourceStatus.NO_DATA,
+            SourceStatus.NEUTRAL,
+            SourceStatus.PARTIAL,
+        }
+        return status if status in valid else SourceStatus.ERROR
+
     def _fuse_signals(self, xmm: dict, vp: dict, llm: dict,
                       weights: Dict[str, float],
-                      date: str, ticker: str) -> dict:
+                      date: str, ticker: str,
+                      normalization_denominator: float = None,
+                      llm_alpha_mode: str = LLM_ALPHA_MODE_WEIGHTED,
+                      llm_reserved_weight: float = 0.0) -> dict:
         """
         三路信号融合（不依赖外部 FusionEngine 的简化版本）。
 
@@ -607,23 +725,32 @@ class FusionController:
         wv = weights.get('vp', 0.0)
         wl = weights.get('llm', 0.0)
         total_w = wx + wv + wl
+        denominator = (
+            float(normalization_denominator)
+            if normalization_denominator is not None
+            else total_w
+        )
 
-        if total_w <= 0:
+        if total_w <= 0 or denominator <= 0:
             return {
                 'level': 'HOLD', 'score': 0.0, 'confidence': 0.0,
                 'position_pct': 0.0, 'risk_level': 'MEDIUM',
                 'warnings': ['所有信号源均不可用'],
                 'reasoning': '无有效信号源',
                 'weights_used': {'xmm': wx, 'vp': wv, 'llm': wl},
+                'llm_alpha_mode': llm_alpha_mode,
+                'llm_audit_score': round(llm_factor, 1),
+                'reserved_weights': {'llm': round(llm_reserved_weight, 6)},
+                'normalization_denominator': round(denominator, 6),
             }
 
-        score = (xmm_factor * wx + vp_factor * wv + llm_factor * wl) / total_w
+        score = (xmm_factor * wx + vp_factor * wv + llm_factor * wl) / denominator
 
         # 置信度（各源置信度的加权平均）
         xmm_conf = xmm.get('position_size', 0.0) if xmm.get('action') != 'HOLD' else 0.3
         vp_conf = vp.get('confidence', 0.0)
         llm_conf = llm.get('confidence', 0.0)
-        confidence = (xmm_conf * wx + vp_conf * wv + llm_conf * wl) / max(total_w, 0.01)
+        confidence = (xmm_conf * wx + vp_conf * wv + llm_conf * wl) / max(denominator, 0.01)
 
         # 信号等级映射
         level = self._score_to_level(score)
@@ -644,9 +771,13 @@ class FusionController:
             warnings.append('XMM与VP信号矛盾')
         if abs(llm_factor) > 60:
             warnings.append(f'LLM情绪极端 ({llm_factor:+.0f})')
+        if llm_alpha_mode == LLM_ALPHA_MODE_AUDIT_ONLY and llm_reserved_weight > 0:
+            warnings.append('LLM处于审计模式：原始分保留，alpha贡献为0')
 
         # 推理
-        reasoning = self._build_reasoning(xmm, vp, llm, score, level)
+        reasoning = self._build_reasoning(
+            xmm, vp, llm, score, level, llm_alpha_mode=llm_alpha_mode
+        )
 
         return {
             'level': level,
@@ -657,6 +788,10 @@ class FusionController:
             'warnings': warnings,
             'reasoning': reasoning,
             'weights_used': {'xmm': wx, 'vp': wv, 'llm': wl},
+            'llm_alpha_mode': llm_alpha_mode,
+            'llm_audit_score': round(llm_factor, 1),
+            'reserved_weights': {'llm': round(llm_reserved_weight, 6)},
+            'normalization_denominator': round(denominator, 6),
             'raw_scores': {
                 'xmm': round(xmm_factor, 1),
                 'vp': round(vp_factor, 1),
@@ -836,7 +971,8 @@ class FusionController:
 
     @staticmethod
     def _build_reasoning(xmm: dict, vp: dict, llm: dict,
-                         score: float, level: str) -> str:
+                         score: float, level: str,
+                         llm_alpha_mode: str = LLM_ALPHA_MODE_WEIGHTED) -> str:
         """生成推理摘要。"""
         parts = []
         parts.append(f'融合={level}({score:+.1f})')
@@ -855,7 +991,8 @@ class FusionController:
 
         if llm.get('sentiment_score', 0) != 0:
             sent = llm.get('sentiment_score', 0)
-            parts.append(f'LLM偏向={sent:+.0f}')
+            label = 'LLM审计' if llm_alpha_mode == LLM_ALPHA_MODE_AUDIT_ONLY else 'LLM偏向'
+            parts.append(f'{label}={sent:+.0f}')
             if llm.get('event_summary'):
                 parts.append(f'[{llm["event_summary"][:30]}]')
 
@@ -875,29 +1012,10 @@ class FusionController:
 
     @staticmethod
     def _detect_vix_regime() -> str:
-        """简易 VIX regime 检测。直接从缓存文件读取。"""
+        """复用统一 VXX 分类器，避免维护第二套价格阈值。"""
         try:
-            from pathlib import Path
-            from datetime import datetime
-            import json
-            p = Path(__file__).resolve().parent.parent / 'scanner' / 'cache' / 'VXX_US.json'
-            if not p.exists():
-                return 'CANDIDATE'
-            with open(p, encoding='utf-8') as f:
-                vxx = json.load(f)
-            if not vxx:
-                return 'CANDIDATE'
-            dates = sorted([datetime.fromtimestamp(r['date'] / 1000).strftime('%Y-%m-%d')
-                           for r in vxx])
-            if len(dates) >= 2:
-                vix_map = {datetime.fromtimestamp(r['date'] / 1000).strftime('%Y-%m-%d'): float(r['close'])
-                          for r in vxx}
-                latest = vix_map[dates[-1]]
-                if latest >= 35:
-                    return 'SUPPRESSED'
-                elif latest <= 22:
-                    return 'RELEASED'
-            return 'CANDIDATE'
+            from market_state.classifier import load_vix_data, classify_vix_regime
+            return classify_vix_regime(load_vix_data()).get('regime', 'CANDIDATE')
         except Exception:
             return 'CANDIDATE'
 
@@ -973,7 +1091,10 @@ class FusionController:
         n_sell = sum(1 for s in signals if s.get('fusion_level') in ('STRONG_SELL', 'SELL'))
         n_resonance = sum(1 for s in signals if s.get('resonance', False))
 
-        lines.append(f'│  权重: XMM 60%  |  VP 25%  |  LLM 15%  (静态硬编码 | 断流时存活源归一化)   │')
+        if self.llm_alpha_mode == LLM_ALPHA_MODE_AUDIT_ONLY:
+            lines.append(f'│  权重: XMM 60%  |  VP 25%  |  LLM 0% alpha + 15% reserve (audit_only)      │')
+        else:
+            lines.append(f'│  权重: XMM 60%  |  VP 25%  |  LLM 15%  (weighted | 断流时存活源归一化)   │')
         lines.append(f'│  熔断: {n_blocked}  |  得分>20: {n_score_gt20}  |  BUY: {n_buy}  |  SELL: {n_sell}  |  共振: {n_resonance}            │')
         lines.append(f'└{sep_thick}┘')
 
@@ -999,6 +1120,22 @@ class FusionController:
             'adapters': adapters,
             'last_scan': self._last_scan,
             'weights': BASE_WEIGHTS.copy(),
+            'llm_alpha_mode': self.llm_alpha_mode,
+            'effective_weights': {
+                **BASE_WEIGHTS,
+                'llm': (
+                    0.0
+                    if self.llm_alpha_mode == LLM_ALPHA_MODE_AUDIT_ONLY
+                    else BASE_WEIGHTS['llm']
+                ),
+            },
+            'reserved_weights': {
+                'llm': (
+                    BASE_WEIGHTS['llm']
+                    if self.llm_alpha_mode == LLM_ALPHA_MODE_AUDIT_ONLY
+                    else 0.0
+                ),
+            },
         }
 
 

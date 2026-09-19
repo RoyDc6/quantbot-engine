@@ -74,9 +74,14 @@ class LLMBiasModel:
         """
         today = datetime.date.today()
 
-        # 内存缓存（同一 ticker 一天只调一次）
-        if not force and self._last_run_date == today and ticker in self._batch_cache:
-            return self._batch_cache[ticker]
+        # 内存缓存必须区分市场状态和闭合 K 线日期，避免状态切换后复用旧语义。
+        cache_key = (
+            ticker,
+            market_state,
+            str(kline_data.get('signal_asof') or today.isoformat()),
+        )
+        if not force and self._last_run_date == today and cache_key in self._batch_cache:
+            return self._batch_cache[cache_key]
 
         # ── 钢化外层: 任何异常都兜底返回 NEUTRAL DecisionSignal ──
         try:
@@ -99,7 +104,22 @@ class LLMBiasModel:
             )
             event_summary = str(event_result.get('event_summary', ''))
             event_type = str(event_result.get('event_type', 'none'))
+            llm_model = str(event_result.get('llm_model', ''))
+            llm_primary_model = str(
+                event_result.get('llm_primary_model', config.LLM_MODEL)
+            )
+            llm_route_status = str(
+                event_result.get('route_status', 'PRIMARY') or 'PRIMARY'
+            ).upper()
             signal_warnings = list(event_result.get('warnings') or [])
+            parse_status = str(
+                event_result.get('parse_status', 'OK') or 'OK'
+            ).upper()
+            source_status = (
+                'FALLBACK'
+                if parse_status == 'OK' and llm_route_status == 'FALLBACK'
+                else parse_status
+            )
 
             # 数值越界钳制
             sentiment_score = max(-100.0, min(100.0, sentiment_score))
@@ -125,7 +145,11 @@ class LLMBiasModel:
                 event_summary=event_summary,
                 event_confidence=sentiment_confidence,
                 regime=market_state,
+                llm_model=llm_model,
+                llm_primary_model=llm_primary_model,
+                llm_route_status=llm_route_status,
                 source='LLMBiasModel',
+                source_status=source_status,
                 signal_level=state,                 # BULL/BEAR/NEUTRAL
                 warnings=signal_warnings + (
                     [] if abs(sentiment_score) < 80 else [f'极端偏向: {state}({sentiment_score:.0f})']
@@ -155,13 +179,17 @@ class LLMBiasModel:
                 event_summary=f'LLM Bias 异常降级: {str(e)[:60]}',
                 event_confidence=0.0,
                 regime=market_state,
+                llm_model=config.LLM_MODEL,
+                llm_primary_model=config.LLM_MODEL,
+                llm_route_status='PRIMARY',
                 source='LLMBiasModel',
+                source_status='ERROR',
                 signal_level='NEUTRAL',
                 warnings=[f'异常降级: {str(e)[:60]}'],
             )
 
         # 缓存（无论正常或降级均缓存）
-        self._batch_cache[ticker] = signal
+        self._batch_cache[cache_key] = signal
         self._last_run_date = today
 
         return signal
@@ -201,6 +229,9 @@ class LLMBiasModel:
         cached = self._batch_cache.get(ticker)
         if cached:
             return cached.event_sentiment_score
+        for cache_key, signal in self._batch_cache.items():
+            if isinstance(cache_key, tuple) and cache_key and cache_key[0] == ticker:
+                return signal.event_sentiment_score
         return 0.0
 
     def clear_cache(self):

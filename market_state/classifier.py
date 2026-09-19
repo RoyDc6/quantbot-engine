@@ -286,6 +286,33 @@ def classify_trend(price_df: pd.DataFrame) -> dict:
     }
 
 
+def classify_crypto_state(price_df: pd.DataFrame) -> str:
+    """使用基准币已收盘日线判定 Crypto 市场状态。
+
+    Crypto 不复用 VIX regime。只有价格同时位于 SMA20/SMA50 同侧，且
+    SMA20 的五日方向一致时才给出 BULL/BEAR；其余保持 CRAB，避免把
+    不确定环境硬编码成单边市场。
+    """
+    if price_df is None or len(price_df) < 60:
+        return MarketState.CRAB
+
+    trend = classify_trend(price_df)
+    close = price_df['close'].values.astype(float)
+    sma20 = compute_sma(close, 20)
+    current_sma20 = sma20[-1]
+    prior_sma20 = sma20[-6]
+    if np.isnan(current_sma20) or np.isnan(prior_sma20):
+        return MarketState.CRAB
+
+    sma20_rising = current_sma20 > prior_sma20
+    sma20_falling = current_sma20 < prior_sma20
+    if trend['trend'] == TrendState.BULL and sma20_rising:
+        return MarketState.BULL
+    if trend['trend'] == TrendState.BEAR and sma20_falling:
+        return MarketState.BEAR
+    return MarketState.CRAB
+
+
 # ─── 综合市场状态 ───────────────────────────────────
 def classify_market_state(vix: dict, trend: dict) -> str:
     """综合判断市场状态"""
@@ -362,9 +389,15 @@ def get_market_advice(market_state: str, vix_regime: str) -> dict:
 class MarketStateClassifier:
     """市场状态分类器"""
 
-    def __init__(self, symbol='SPY.US'):
+    def __init__(self, symbol='SPY.US', vix_df=None, vix_meta=None):
         self.symbol = symbol
-        self.vix_df = None
+        self.vix_df = (
+            vix_df.sort_values('date').tail(252).reset_index(drop=True)
+            if isinstance(vix_df, pd.DataFrame) and not vix_df.empty
+            else vix_df
+        )
+        self.vix_meta = dict(vix_meta) if isinstance(vix_meta, dict) else {}
+        self._vix_injected = vix_df is not None
         self.price_df = None
         self.vix_state = None
         self.trend_state = None
@@ -373,10 +406,17 @@ class MarketStateClassifier:
     def load_data(self):
         """加载数据"""
         print(f'\n加载 {self.symbol} 市场数据...')
-        self.vix_df = load_vix_data()
+        if not self._vix_injected:
+            self.vix_df = load_vix_data()
         self.price_df = load_price_data(self.symbol)
         if self.vix_df is not None:
             print(f'  VXX 数据: {len(self.vix_df)} 天')
+        if self.vix_meta:
+            print(
+                f'  VXX 来源: {self.vix_meta.get("source", "UNKNOWN")} | '
+                f'as-of: {self.vix_meta.get("as_of", "N/A")} | '
+                f'新鲜度: {self.vix_meta.get("freshness", "UNKNOWN")}'
+            )
         if self.price_df is not None:
             print(f'  价格数据: {len(self.price_df)} 天')
 
@@ -384,10 +424,12 @@ class MarketStateClassifier:
         """执行完整分析"""
         # VIX 分析
         self.vix_state = classify_vix_regime(self.vix_df)
-        print(f'\nVIX 环境: {self.vix_state["regime"]}')
+        print(f'\nVXX 环境: {self.vix_state["regime"]}')
         print(f'  VXX价格: {self.vix_state["vxx_price"]}')
         print(f'  RSI日: {self.vix_state["rsi_day"]} 周: {self.vix_state["rsi_week"]}')
-        print(f'  趋势: {self.vix_state["trend"]} 分位: {self.vix_state["pct_rank"]:.0f}%')
+        pct_rank = self.vix_state.get('pct_rank')
+        pct_text = f'{pct_rank:.0f}%' if pct_rank is not None else 'N/A'
+        print(f'  趋势: {self.vix_state["trend"]} 分位: {pct_text}')
 
         # 趋势分析
         self.trend_state = classify_trend(self.price_df)
@@ -410,7 +452,7 @@ class MarketStateClassifier:
     def get_report(self) -> dict:
         """获取完整报告"""
         advice = get_market_advice(self.market_state, self.vix_state['regime'])
-        return {
+        report = {
             'timestamp': datetime.now().isoformat(),
             'symbol': self.symbol,
             'market_state': self.market_state,
@@ -422,6 +464,20 @@ class MarketStateClassifier:
             'trend_detail': self.trend_state,
             'advice': advice,
         }
+        if self.vix_meta:
+            report.update({
+                'vxx_source': self.vix_meta.get('source'),
+                'vxx_as_of': self.vix_meta.get('as_of'),
+                'vxx_expected_as_of': self.vix_meta.get('expected_as_of'),
+                'vxx_stale_sessions': self.vix_meta.get('stale_sessions'),
+                'vxx_freshness': self.vix_meta.get('freshness'),
+                'vxx_fetch_error': self.vix_meta.get('fetch_error'),
+            })
+            report['vix_detail'] = {
+                **self.vix_state,
+                **self.vix_meta,
+            }
+        return report
 
     def save_report(self) -> str:
         """保存报告到 JSON"""

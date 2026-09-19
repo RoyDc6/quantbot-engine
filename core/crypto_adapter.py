@@ -16,6 +16,7 @@ import re
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from typing import Optional, Dict, List, Tuple
 from pathlib import Path
 
@@ -41,6 +42,10 @@ KTYPE_MAP = {
     'K_WEEK': '1W',
     'K_MON': '1M',
 }
+
+OKX_CANDLE_LIMIT = 300
+OKX_DAILY_TIMEZONE = ZoneInfo('Asia/Shanghai')
+CONFIRMED_BAR_TYPES = {'K_DAY', 'K_WEEK', 'K_MON'}
 
 
 class CryptoAdapter(BaseAdapter):
@@ -76,7 +81,7 @@ class CryptoAdapter(BaseAdapter):
 
         Args:
             symbol: 标准符号 'BTC.USDT' / 'ETH.USDT'
-            count: K 线根数（最大 300）
+            count: K 线根数（日线等已收盘周期支持自动分页）
             ktype: 支持 K_1M / K_5M / K_15M / K_30M / K_1H / K_4H / K_DAY / K_WEEK / K_MON
 
         Returns:
@@ -86,14 +91,31 @@ class CryptoAdapter(BaseAdapter):
         if not inst_id:
             return None
 
+        confirmed_only = bool(kwargs.get('confirmed_only', ktype in CONFIRMED_BAR_TYPES))
+
+        # 日/周/月线必须通过 REST 获取 confirm 字段。CLI 表格输出没有
+        # confirm，无法区分正在形成的 K 线，不能用于闭合周期信号。
+        if confirmed_only:
+            return self._fetch_kline_rest(
+                inst_id,
+                count=count,
+                ktype=ktype,
+                confirmed_only=confirmed_only,
+            )
+
         if not self.available:
             return None
 
         if not self._detect_cli_available():
-            return self._fetch_kline_rest(inst_id, count=count, ktype=ktype)
+            return self._fetch_kline_rest(
+                inst_id,
+                count=count,
+                ktype=ktype,
+                confirmed_only=False,
+            )
 
         bar = KTYPE_MAP.get(ktype, '1D')
-        limit = min(count, 300)
+        limit = min(count, OKX_CANDLE_LIMIT)
 
         try:
             cmd = f'{self._cli} market candles {inst_id} --bar {bar} --limit {limit}'
@@ -167,27 +189,76 @@ class CryptoAdapter(BaseAdapter):
         return bool(self._cli_available)
 
     def _fetch_kline_rest(self, inst_id: str, count: int = 252,
-                          ktype: str = 'K_DAY') -> Optional[pd.DataFrame]:
-        """通过 OKX 公共 REST 获取 K 线。"""
+                          ktype: str = 'K_DAY',
+                          confirmed_only: bool = False) -> Optional[pd.DataFrame]:
+        """通过 OKX 公共 REST 获取 K 线。
+
+        对闭合周期默认过滤 ``confirm != 1`` 的当前形成中 K 线，并在需要
+        超过 300 根历史数据时使用 history-candles 向前分页。
+        """
         bar = KTYPE_MAP.get(ktype, '1D')
-        params = {'instId': inst_id, 'bar': bar, 'limit': min(count, 300)}
+        target_count = max(int(count), 1)
+        first_limit = min(
+            target_count + (1 if confirmed_only else 0),
+            OKX_CANDLE_LIMIT,
+        )
+        params = {'instId': inst_id, 'bar': bar, 'limit': first_limit}
         data = self._rest_get('/api/v5/market/candles', params)
         rows = data.get('data') if data else None
         if not rows:
             return None
 
+        raw_rows = list(rows)
+        seen_ts = {str(row[0]) for row in raw_rows if row}
+
+        def usable_count(items) -> int:
+            if not confirmed_only:
+                return len(items)
+            return sum(1 for row in items if len(row) > 8 and str(row[8]) == '1')
+
+        # OKX 每页最多 300 根。after=<oldest ts> 返回更早的记录。
+        page_count = 0
+        while usable_count(raw_rows) < target_count and page_count < 50:
+            oldest_ts = min(int(row[0]) for row in raw_rows if row)
+            remaining = target_count - usable_count(raw_rows)
+            page_limit = min(max(remaining, 1), OKX_CANDLE_LIMIT)
+            history = self._rest_get('/api/v5/market/history-candles', {
+                'instId': inst_id,
+                'bar': bar,
+                'after': str(oldest_ts),
+                'limit': page_limit,
+            })
+            history_rows = history.get('data') if history else None
+            if not history_rows:
+                break
+
+            new_rows = [row for row in history_rows if row and str(row[0]) not in seen_ts]
+            if not new_rows:
+                break
+            raw_rows.extend(new_rows)
+            seen_ts.update(str(row[0]) for row in new_rows)
+            page_count += 1
+
         records = []
-        for row in rows:
+        incomplete_bars_excluded = 0
+        for row in raw_rows:
             try:
+                confirm = str(row[8]) if len(row) > 8 else ''
+                if confirmed_only and confirm != '1':
+                    incomplete_bars_excluded += 1
+                    continue
                 ts_ms = int(row[0])
-                dt = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc)
+                dt_utc = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc)
+                dt_local = dt_utc.astimezone(OKX_DAILY_TIMEZONE)
                 records.append({
-                    'date': dt.strftime('%Y-%m-%d'),
+                    'timestamp': ts_ms,
+                    'date': dt_local.strftime('%Y-%m-%d'),
                     'open': float(row[1]),
                     'high': float(row[2]),
                     'low': float(row[3]),
                     'close': float(row[4]),
                     'volume': float(row[5]),
+                    'confirm': confirm == '1',
                 })
             except (ValueError, TypeError, IndexError):
                 continue
@@ -195,8 +266,25 @@ class CryptoAdapter(BaseAdapter):
         if not records:
             return None
         df = pd.DataFrame(records)
-        df = df.sort_values('date').drop_duplicates(subset=['date']).reset_index(drop=True)
+        df = (
+            df.sort_values('timestamp')
+            .drop_duplicates(subset=['timestamp'])
+            .tail(target_count)
+            .reset_index(drop=True)
+        )
         df.attrs['source'] = 'OKX_REST'
+        df.attrs['signal_asof'] = str(df['date'].iloc[-1])
+        df.attrs['bar_confirmed'] = bool(df['confirm'].all())
+        df.attrs['bar_timezone'] = str(OKX_DAILY_TIMEZONE)
+        df.attrs['incomplete_bars_excluded'] = incomplete_bars_excluded
+        df.attrs['requested_count'] = target_count
+        df.attrs['returned_count'] = len(df)
+        try:
+            last_date = datetime.strptime(df.attrs['signal_asof'], '%Y-%m-%d').date()
+            local_today = datetime.now(OKX_DAILY_TIMEZONE).date()
+            df.attrs['stale_days'] = max(0, (local_today - last_date).days)
+        except (TypeError, ValueError):
+            pass
         return df
 
     def _rest_ticker(self, inst_id: str) -> Optional[Dict]:

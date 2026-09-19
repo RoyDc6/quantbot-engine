@@ -11,6 +11,7 @@ core/order_executor.py - QuantBot 统一订单执行模块
 """
 import os
 import json
+import time
 from datetime import datetime
 
 try:
@@ -28,13 +29,23 @@ class OrderExecutor:
     """统一订单执行器 — 支持港股+美股。"""
 
     def __init__(self, host='127.0.0.1', port=11111, dry_run=True,
-                 journal_factory=None):
+                 journal_factory=None, terminal_poll_timeout_seconds=15.0,
+                 terminal_poll_interval_seconds=1.0, sleep_fn=None,
+                 monotonic_fn=None):
         self.host = host
         self.port = port
         self.dry_run = dry_run
         self.trade_log = []
         self._adapter = FutuAdapter(host=host, port=port)
         self._journal_factory = journal_factory or OrderJournal
+        self.terminal_poll_timeout_seconds = max(
+            0.0, float(terminal_poll_timeout_seconds),
+        )
+        self.terminal_poll_interval_seconds = max(
+            0.0, float(terminal_poll_interval_seconds),
+        )
+        self._sleep = sleep_fn or time.sleep
+        self._monotonic = monotonic_fn or time.monotonic
 
     def execute_orders(self, orders, log_path=None, risk_manager=None):
         """批量执行订单列表。
@@ -126,6 +137,10 @@ class OrderExecutor:
                 sell_results.append(result)
                 results.append(result)
 
+            self._wait_for_terminal_results(
+                journal, sell_results, risk_manager=risk_manager,
+            )
+
             if sell_orders:
                 sell_statuses = {r.get('status') for r in sell_results}
                 if sell_statuses != {OrderStatus.FILLED_ALL.value}:
@@ -156,6 +171,9 @@ class OrderExecutor:
                     risk_manager=risk_manager,
                 )
                 results.append(result)
+                self._wait_for_terminal_results(
+                    journal, [result], risk_manager=risk_manager,
+                )
 
             journal.reconcile(self._adapter)
             journal.apply_stop_side_effects(risk_manager)
@@ -165,6 +183,38 @@ class OrderExecutor:
             journal.close()
 
         return results
+
+    def _wait_for_terminal_results(self, journal, results, risk_manager=None):
+        """Bounded polling that keeps executor results aligned with the journal."""
+        tracked = [r for r in results if r.get('intent_id')]
+        if not tracked:
+            return
+
+        deadline = self._monotonic() + self.terminal_poll_timeout_seconds
+        while True:
+            journal.reconcile(self._adapter, include_history=False)
+            journal.apply_stop_side_effects(risk_manager)
+
+            pending = []
+            for result in tracked:
+                entry = journal.get_order(result['intent_id'])
+                if not entry:
+                    continue
+                result.update({
+                    'order_id': entry.get('order_id', result.get('order_id', '')),
+                    'status': entry.get('status', result.get('status', '')),
+                    'futu_status': entry.get('futu_status', ''),
+                    'dealt_qty': entry.get('dealt_qty', 0),
+                    'dealt_avg_price': entry.get('dealt_avg_price', 0),
+                    'filled_at': entry.get('filled_at', ''),
+                })
+                if entry.get('status') not in OrderStatus.terminal_set():
+                    pending.append(result)
+
+            if not pending or self._monotonic() >= deadline:
+                return
+            remaining = max(0.0, deadline - self._monotonic())
+            self._sleep(min(self.terminal_poll_interval_seconds, remaining))
 
     def _place_single_order(self, order, market, journal=None, risk_manager=None):
         """执行单笔订单。使用 FutuAdapter 统一下单。"""

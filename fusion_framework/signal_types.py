@@ -213,7 +213,11 @@ class DecisionSignal:
 
     # --- 元数据 ---
     llm_weight_used: float = 0.30  # 本次使用的 LLM 权重 (regime-dependent)
+    llm_model: str = ""            # 实际响应模型（含运行级回退）
+    llm_primary_model: str = ""    # 配置的主模型（审计/路由溯源）
+    llm_route_status: str = "PRIMARY"  # PRIMARY/FALLBACK
     source: str = ""               # 数据源 (Futu/TickFlow)
+    source_status: str = "OK"      # OK/FALLBACK/PARTIAL/NO_DATA/ERROR/SKIPPED
 
 
 @dataclass

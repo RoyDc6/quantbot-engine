@@ -8,6 +8,7 @@ Phase B — Live Guardrails 测试套件。
   3. 执行路径 → inline mock run()
 """
 
+import json
 import subprocess
 import sys
 import tempfile
@@ -207,3 +208,80 @@ class TestBuildPreTradeSummaryDirect:
         # risk check 也应基于正确值
         assert summary['risk_checks']['cash_after_orders']['pass'] is True
         assert summary['risk_checks']['exposure_after_orders']['pass'] is True
+
+    def test_oversized_risk_reducing_sell_is_not_blocked_by_position_cap(self):
+        from unified_runner import _build_pre_trade_summary, _should_block_live
+
+        summary = _build_pre_trade_summary(
+            market='US',
+            requested_live=True,
+            confirmed_live=True,
+            account={'market_val': 241756},
+            positions=[{'symbol': 'AAPL.US', 'qty': 739}],
+            orders=[{
+                'symbol': 'AAPL.US', 'action': 'SELL',
+                'qty': 739, 'price': 328.70,
+                'reason': '止盈 pnl=+22.7%',
+            }],
+            total_assets=1039481,
+            cash_before=797724,
+            exposure_before=241756,
+        )
+
+        assert summary['risk_checks']['largest_order_pct']['pass'] is True
+        assert 'reduce exposure' in summary['risk_checks']['largest_order_pct']['detail']
+        assert _should_block_live(summary) == (False, [])
+
+    def test_oversized_buy_remains_blocked_by_position_cap(self):
+        from unified_runner import _build_pre_trade_summary, _should_block_live
+
+        summary = _build_pre_trade_summary(
+            market='US',
+            requested_live=True,
+            confirmed_live=True,
+            account={'market_val': 0},
+            positions=[],
+            orders=[{
+                'symbol': 'AAPL.US', 'action': 'BUY',
+                'qty': 700, 'price': 328.70, 'reason': 'test',
+            }],
+            total_assets=1000000,
+            cash_before=1000000,
+            exposure_before=0,
+        )
+
+        assert summary['risk_checks']['largest_order_pct']['pass'] is False
+        blocked, reasons = _should_block_live(summary)
+        assert blocked is True
+        assert reasons
+
+
+def test_signal_json_separates_generated_orders_from_execution_results(
+        tmp_path, monkeypatch):
+    import unified_runner
+
+    monkeypatch.setattr(unified_runner, 'BASE', tmp_path)
+    signal = {
+        'symbol': 'AAPL.US',
+        'fusion_level': 'REDUCED',
+    }
+    order = {
+        'symbol': 'AAPL.US', 'action': 'SELL',
+        'qty': 739, 'price': 328.70,
+    }
+
+    unified_runner._save_signals(
+        '2026-07-16', 'US', [signal], [order],
+        execution_mode='LIVE_BLOCKED_BY_RULES',
+        execution_results=[],
+    )
+
+    payload = json.loads(
+        (tmp_path / 'paper_trading' / 'signals' / '2026-07-16_US.json')
+        .read_text(encoding='utf-8')
+    )
+    assert payload['orders'] == [order]
+    assert payload['execution'] == {
+        'mode': 'LIVE_BLOCKED_BY_RULES',
+        'results': [],
+    }

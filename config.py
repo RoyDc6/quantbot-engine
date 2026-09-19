@@ -110,11 +110,13 @@ OUTPUT_DIR = os.path.join(BASE_DIR, 'output')
 # ╔══════════════════════════════════════════════════════════════╗
 # ║  【锁定标记 L-001】LLM 情绪因子模型名                        ║
 # ║  此值不可由 AI 自动修改。修改必须经 Roy 明确授权。              ║
-# ║  2026-05-30 经6标的×4模型横评确认:                            ║
-# ║    mixtral-8x7b (旧) → 连续下跌场景系统性误判                ║
-# ║    llama-4-maverick (新) → 6/6价格理解, 9.9s                 ║
+# ║  2026-09-06 经 Roy 授权，按生产 JSON 契约完成实时复核:         ║
+# ║    nemotron-3.5-lightning-30b-a3b → 9/9 通过，最大 8.578s   ║
+# ║    关闭 thinking + JSON mode；未找到合格回退模型。            ║
+# ║  旧 nemotron-3-nano 端点已 EOL；备用保持未配置。             ║
 # ╚══════════════════════════════════════════════════════════════╝
-LLM_MODEL = 'meta/llama-4-maverick-17b-128e-instruct'
+LLM_MODEL = 'nvidia/nemotron-3.5-lightning-30b-a3b'
+LLM_FALLBACK_MODEL = ''  # 无合格回退；失败时保持 audit_only 中性降级
 # 所有代码必须通过此配置读取，禁止在代码中直接写模型名字符串。
 
 # === FusionEngine 三因子权重 =========================================

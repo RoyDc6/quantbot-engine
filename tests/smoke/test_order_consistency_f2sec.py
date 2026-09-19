@@ -28,12 +28,18 @@ from core.stop_loss import RiskManager
 
 
 class FakeAdapter:
-    def __init__(self, results=None):
+    def __init__(self, results=None, order_lists=None, history_orders=None):
         self.results = list(results or [])
+        self.order_lists = list(order_lists or [])
+        self.history_orders = list(history_orders or [])
         self.place_calls = []
 
     def get_order_list(self, market='HK'):
-        return QueryResult(True, [])
+        orders = self.order_lists.pop(0) if self.order_lists else []
+        return QueryResult(True, orders)
+
+    def get_history_order_list(self, market='HK', start='', end=''):
+        return QueryResult(True, self.history_orders)
 
     def place_order(self, **kwargs):
         self.place_calls.append(kwargs)
@@ -181,7 +187,11 @@ def test_live_stop_sell_filled_confirms_cooldown(tmp_path, monkeypatch):
 
 def test_live_buy_skipped_unless_all_sells_filled(tmp_path, monkeypatch):
     monkeypatch.setattr(order_executor_module, 'FUTU_AVAILABLE', True)
-    executor = OrderExecutor(dry_run=False, journal_factory=_journal_factory(tmp_path))
+    executor = OrderExecutor(
+        dry_run=False,
+        journal_factory=_journal_factory(tmp_path),
+        terminal_poll_timeout_seconds=0,
+    )
     executor._adapter = FakeAdapter([
         PlaceOrderResult(
             status=OrderStatus.SUBMITTED,
@@ -257,3 +267,78 @@ def test_cancelling_statuses_remain_blocking_non_terminal():
         assert status.value not in OrderStatus.terminal_set()
         assert status.value in OrderStatus.blocking_set()
         assert status.value in OrderStatus.uncertain_set()
+
+
+def test_live_submitting_sell_is_polled_to_filled_all(tmp_path, monkeypatch):
+    monkeypatch.setattr(order_executor_module, 'FUTU_AVAILABLE', True)
+    executor = OrderExecutor(
+        dry_run=False,
+        journal_factory=_journal_factory(tmp_path),
+        terminal_poll_timeout_seconds=0.1,
+        terminal_poll_interval_seconds=0,
+    )
+    executor._adapter = FakeAdapter(
+        results=[PlaceOrderResult(
+            status=OrderStatus.SUBMITTING,
+            order_id='SELL-2',
+            futu_status='SUBMITTING',
+        )],
+        order_lists=[[], [{
+            'order_id': 'SELL-2',
+            'code': 'HK.00700',
+            'order_status': 'FILLED_ALL',
+            'dealt_qty': 100,
+            'dealt_avg_price': 101.5,
+            'updated_time': '2026-07-20 10:00:09',
+        }]],
+    )
+
+    results = executor.execute_orders([{
+        'symbol': '00700.HK',
+        'action': 'SELL',
+        'qty': 100,
+        'price': 101.5,
+        'lot_size': 100,
+        'intent_type': 'REVERSAL_SELL',
+    }])
+
+    assert results[0]['status'] == OrderStatus.FILLED_ALL.value
+    assert results[0]['dealt_qty'] == 100
+    assert results[0]['dealt_avg_price'] == 101.5
+
+
+def test_reconcile_uses_history_for_cross_day_terminal_status(tmp_path):
+    journal = OrderJournal('US', db_path=tmp_path / 'journal.db')
+    try:
+        assert journal.acquire_lease()
+        entry = journal.reserve_order({
+            'symbol': 'AAPL.US',
+            'action': 'SELL',
+            'qty': 739,
+            'price': 333.35,
+            'intent_type': 'STOP_SELL',
+        })
+        journal.mark_submitting(entry['intent_id'])
+        journal.record_place_result(entry['intent_id'], PlaceOrderResult(
+            status=OrderStatus.SUBMITTING,
+            order_id='8998116',
+            futu_status='SUBMITTING',
+        ))
+        adapter = FakeAdapter(history_orders=[{
+            'order_id': '8998116',
+            'code': 'US.AAPL',
+            'order_status': 'FILLED_ALL',
+            'dealt_qty': 739,
+            'dealt_avg_price': 333.85,
+            'updated_time': '2026-07-17 21:35:42',
+        }])
+
+        journal.reconcile(adapter)
+        final = journal.get_order(entry['intent_id'])
+
+        assert final['status'] == OrderStatus.FILLED_ALL.value
+        assert final['dealt_qty'] == 739
+        assert final['dealt_avg_price'] == 333.85
+    finally:
+        journal.release_lease()
+        journal.close()

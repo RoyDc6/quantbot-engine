@@ -22,6 +22,7 @@ fusion_report_v3.py — QuantBot 全量 FusionController 日报 v3.0
 import sys
 import os
 import json
+import re
 from pathlib import Path
 from datetime import datetime, timedelta
 
@@ -100,7 +101,12 @@ def generate_v3_report(date: str, market: str,
                        orders: list = None,
                        positions: list = None,
                        account: dict = None,
-                       market_report: dict = None) -> str:
+                       market_report: dict = None,
+                       execution_mode: str = '',
+                       execution_results: list = None,
+                       report_mode: str = '',
+                       account_access: bool = None,
+                       order_api_called: bool = None) -> str:
     """
     生成 v3.0 结构化日报。
 
@@ -108,10 +114,15 @@ def generate_v3_report(date: str, market: str,
         date:       日期 'YYYY-MM-DD'
         market:     'HK' 或 'US'
         signals:    FusionController 分析结果列表 (来自 _fc_result_to_signal 映射)
-        orders:     当日订单列表
+        orders:     当日候选订单列表（不代表已成交）
         positions:  持仓列表
         account:    账户信息
         market_report: 市场状态报告
+        execution_mode: SIGNAL_ONLY/DRY_RUN/LIVE_CONFIRMED/LIVE_BLOCKED_*
+        execution_results: OrderExecutor 返回的实际执行或模拟结果
+        report_mode: RESEARCH_ONLY_COMPLETED_DAILY 或其他报告模式
+        account_access: 本次报告流程是否访问账户能力
+        order_api_called: 本次报告流程是否调用订单 API
 
     Returns:
         report_path: 报告文件路径
@@ -122,6 +133,7 @@ def generate_v3_report(date: str, market: str,
 
     orders = orders or []
     positions = positions or []
+    execution_results = execution_results or []
 
     # ─── 信号按等级分组 ────────────────────────────────────────
     strong_buys = [s for s in signals if s.get('fusion_level') == 'STRONG_BUY']
@@ -154,18 +166,39 @@ def generate_v3_report(date: str, market: str,
     prev_signals = _load_prev_signals(date, market)
 
     # ─── 生成报告正文 ──────────────────────────────────────────
-    md = _build_header(date, market, market_state, vix_regime, trend, momentum, state_pos_limit)
-    md += _build_account_section(total_assets, cash, pos_value, n_positions)
+    generated_at = datetime.now().astimezone()
+    md = _build_header(
+        date, market, market_state, vix_regime, trend, momentum,
+        state_pos_limit, ms, signals=signals, generated_at=generated_at,
+        report_mode=report_mode,
+    )
+    md += _build_account_section(
+        total_assets, cash, pos_value, n_positions,
+        report_mode=report_mode,
+        account_access=account_access,
+        order_api_called=order_api_called,
+    )
     md += _build_signal_summary(signals, all_buy, sells, reduced, holds, errors)
     md += _build_factor_view_section(signals)
     md += _build_full_matrix(signals, prev_signals)
     md += _build_factor_decomposition(all_buy, reduced, sells)
     md += _build_delta_section(signals, prev_signals, date)
-    md += _build_execution_tracking(orders, positions, signals, market)
-    md += _build_risk_dashboard(positions, signals)
+    md += _build_execution_tracking(
+        orders, positions, signals, market,
+        execution_mode=execution_mode,
+        execution_results=execution_results,
+        report_mode=report_mode,
+        account_access=account_access,
+        order_api_called=order_api_called,
+    )
+    md += _build_risk_dashboard(positions, signals, total_assets)
     md += _build_strategy_notes(signals, market_state, market)
 
-    md += f"\n\n---\n*QuantBot FusionController v3.0 | 生成: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n"
+    md += (
+        "\n\n---\n"
+        f"*QuantBot FusionController v3.0 | 生成: "
+        f"{generated_at.isoformat(timespec='seconds')}*\n"
+    )
 
     # ─── 写入 ──────────────────────────────────────────────────
     with open(report_path, 'w', encoding='utf-8') as f:
@@ -179,27 +212,102 @@ def generate_v3_report(date: str, market: str,
 # 各节构建函数
 # ═══════════════════════════════════════════════════════════════════
 
-def _build_header(date, market, market_state, vix_regime, trend, momentum, pos_limit):
+def _signal_data_cutoff(signals):
+    """Return the declared signal date range without inventing bar finality."""
+    signal_dates = sorted({
+        str(signal.get('date')).strip()
+        for signal in (signals or [])
+        if signal.get('date')
+    })
+    if not signal_dates:
+        return 'N/A'
+    if len(signal_dates) == 1:
+        return signal_dates[0]
+    return f'{signal_dates[0]}..{signal_dates[-1]}'
+
+
+def _signal_bar_finality(signals, market_report=None):
+    """Use only explicitly declared finality; never infer it from wall time."""
+    ms = market_report if isinstance(market_report, dict) else {}
+    declared = []
+    for value in (
+        ms.get('bar_finality'),
+        ms.get('data_finality'),
+        ms.get('session_finality'),
+    ):
+        if value:
+            declared.append(str(value).upper())
+    for signal in signals or []:
+        for key in ('bar_finality', 'data_finality', 'session_finality'):
+            value = signal.get(key)
+            if value:
+                declared.append(str(value).upper())
+    values = sorted(set(declared))
+    if not values:
+        return 'UNVERIFIED'
+    return values[0] if len(values) == 1 else f"MIXED({','.join(values)})"
+
+
+def _build_header(date, market, market_state, vix_regime, trend, momentum,
+                  pos_limit, market_report=None, signals=None,
+                  generated_at=None, report_mode=''):
     mkt_label = MARKET_LABELS.get(market, market)
     state_icon = MARKET_STATE_COLOR.get(market_state, '⬜')
     n_stocks = 7 if market == 'HK' else 15
+    ms = market_report if isinstance(market_report, dict) else {}
+    vxx_detail = ms.get('vix_detail', {})
+    if not isinstance(vxx_detail, dict):
+        vxx_detail = {}
+    vxx_source = ms.get('vxx_source') or vxx_detail.get('source') or 'UNKNOWN'
+    vxx_as_of = ms.get('vxx_as_of') or vxx_detail.get('as_of') or 'N/A'
+    vxx_freshness = ms.get('vxx_freshness') or vxx_detail.get('freshness') or 'UNKNOWN'
+    vxx_price = vxx_detail.get('vxx_price')
+    vxx_price_text = f'{vxx_price:.2f}' if isinstance(vxx_price, (int, float)) else 'N/A'
+    signal_cutoff = _signal_data_cutoff(signals)
+    bar_finality = _signal_bar_finality(signals, ms)
+    report_mode_text = report_mode or 'STANDARD'
+    report_time = generated_at or datetime.now().astimezone()
+    if report_time.tzinfo is None:
+        report_time = report_time.astimezone()
+    comparison_note = (
+        "\n> 数据可比性：当前 QuantBot schema 未显式声明日线是否完成；"
+        "与 `COMPLETED_SESSION_ONLY` 模型比较时必须标记 `NOT_COMPARABLE`。\n"
+        if bar_finality == 'UNVERIFIED'
+        else ''
+    )
 
     return f"""# QuantBot FusionController 日报 v3.0
 
-> {date} | {mkt_label} ({n_stocks} 标的) | 状态: {state_icon} {market_state} | VIX: {vix_regime}
+> {date} | {mkt_label} ({n_stocks} 标的) | 状态: {state_icon} {market_state} | VXX: {vix_regime}
 
 ## I. 市场环境
 
 | 维度 | 状态 | 含义 |
 |------|------|------|
 | **市场状态** | {state_icon} **{market_state}** | 仓位上限 {pos_limit:.0%} |
-| **VIX 环境** | {vix_regime} | {'压制买盘(>35)' if vix_regime == 'SUPPRESSED' else '正常' if vix_regime == 'CANDIDATE' else '释放卖压(<22)'} |
+| **VXX 环境** | {vix_regime} | {'压制买盘(>35)' if vix_regime == 'SUPPRESSED' else '正常' if vix_regime == 'CANDIDATE' else '释放卖压(<22)'} |
+| **VXX 数据** | {vxx_price_text} · {vxx_freshness} | {vxx_source} · as-of {vxx_as_of} |
 | **趋势方向** | {trend} | — |
 | **动量** | {momentum} | — |
+| **报告模式** | {report_mode_text} | 研究/执行边界显式声明 |
+| **信号数据截止** | {signal_cutoff} | bar finality: {bar_finality} |
+| **报告生成时间** | {report_time.isoformat(timespec='seconds')} | 含本地 UTC offset |
+""" + comparison_note
+
+
+def _build_account_section(total_assets, cash, pos_value, n_positions,
+                           report_mode='', account_access=None,
+                           order_api_called=None):
+    if report_mode == 'RESEARCH_ONLY_COMPLETED_DAILY':
+        return f"""## II. 研究边界
+
+| 能力 | 状态 |
+|------|------|
+| **Account Access** | {'ENABLED' if account_access else 'DISABLED'} |
+| **Order API Called** | {'YES' if order_api_called else 'NO'} |
+| **订单与成交** | 研究模式不生成、不执行 |
+
 """
-
-
-def _build_account_section(total_assets, cash, pos_value, n_positions):
     if total_assets <= 0:
         return ""
 
@@ -322,17 +430,26 @@ def _build_full_matrix(signals, prev_signals):
 
 
 def _build_factor_view_section(signals):
-    """三因子直接观点 — 先展示各因子的独立买卖观点，再看融合结果。"""
+    """展示有效 alpha 因子观点，并将 audit-only LLM 单独标注。"""
     if not signals:
         return ""
 
     sorted_signals = sorted(signals, key=lambda x: x.get('fusion_score', 0), reverse=True)
 
-    s = f"""## IV. 三因子直接观点 ({len(signals)} 标的)
+    audit_only = any(_llm_is_audit_only(sig) for sig in signals)
+    title = '有效因子观点 + LLM审计' if audit_only else '三因子直接观点'
+    consensus_title = '有效因子一致性' if audit_only else '三因子一致性'
+    intro = (
+        'XMM/VP为有效alpha观点；LLM仅保留审计亮牌，不参与融合分、置信度或一致性计数。'
+        if audit_only else
+        '每个因子独立亮牌：买入 / 卖出 / 观望。这里不代表最终下单，最终执行仍由融合分、置信度和 Gate 决定。'
+    )
 
-> 每个因子独立亮牌：买入 / 卖出 / 观望。这里不代表最终下单，最终执行仍由融合分、置信度和 Gate 决定。
+    s = f"""## IV. {title} ({len(signals)} 标的)
 
-| 标的 | XMM观点 | VP观点 | LLM观点 | 三因子一致性 | 融合信号 | Gate |
+> {intro}
+
+| 标的 | XMM观点 | VP观点 | LLM观点 | {consensus_title} | 融合信号 | Gate |
 |------|---------|--------|---------|--------------|----------|------|
 """
 
@@ -370,7 +487,10 @@ def _build_factor_decomposition(all_buy, reduced, sells):
     if not all_buy and not reduced and not sells:
         return ""
 
-    s = "## VI. 三因子加权分解\n\n"
+    policy_signals = [*all_buy, *reduced, *sells]
+    audit_only = any(_llm_is_audit_only(sig) for sig in policy_signals)
+    title = '有效因子加权分解 + LLM审计' if audit_only else '三因子加权分解'
+    s = f"## VI. {title}\n\n"
 
     for group_name, group_signals in [
         ('BUY 信号', all_buy),
@@ -381,7 +501,9 @@ def _build_factor_decomposition(all_buy, reduced, sells):
             continue
 
         s += f"### {group_name} ({len(group_signals)} 只)\n\n"
-        s += "| 标的 | 融合分 | XMM原始 | →加权 | VP原始 | →加权 | LLM原始 | →加权 | XMM详情 | VP详情 | LLM详情 |\n"
+        llm_score_header = 'LLM审计分' if audit_only else 'LLM原始'
+        llm_contrib_header = '→alpha' if audit_only else '→加权'
+        s += f"| 标的 | 融合分 | XMM原始 | →加权 | VP原始 | →加权 | {llm_score_header} | {llm_contrib_header} | XMM详情 | VP详情 | LLM详情 |\n"
         s += "|------|--------|---------|-------|--------|-------|---------|-------|----------|--------|----------|\n"
 
         for sig in group_signals:
@@ -411,7 +533,21 @@ def _build_factor_decomposition(all_buy, reduced, sells):
         s += "\n"
 
     # 权重详解
-    s += """### 权重体系
+    if audit_only:
+        s += """### 权重体系（audit_only）
+
+| 因子 | 有效权重 | 角色 | 数据源 |
+|------|----------|------|--------|
+| **XMM** (徐小明策略) | 60% | 主力方向判断 | 双EMA趋势 + MACD结构 + TD9序列 |
+| **VP** (Volume Profile) | 25% | 筹码箱体确认 | 成交量分布 + VAH/VAL/POC |
+| **LLM** (技术审计) | **0% alpha** | 仅保留观点、摘要和审计分 | NVIDIA NIM / OHLC技术解释 |
+| **预留权重** | **15%** | 不分配、不放大XMM/VP | Shadow A策略 |
+
+> LLM异常或跳过时预留份额仍保持；只有XMM/VP等有效alpha源之间按可用状态调整权重。
+
+"""
+    else:
+        s += """### 权重体系
 
 | 因子 | 权重 | 角色 | 数据源 |
 |------|------|------|--------|
@@ -470,11 +606,72 @@ def _build_delta_section(signals, prev_signals, date):
     return s
 
 
-def _build_execution_tracking(orders, positions, signals, market):
-    """执行层追踪 — 哪些信号被执行，哪些被跳过."""
-    s = "## VIII. 执行追踪\n\n"
+def _matching_execution_result(order, execution_results):
+    """Find the executor result corresponding to a generated order."""
+    symbol = str(order.get('symbol', ''))
+    action = str(order.get('action', '')).upper()
+    for result in execution_results:
+        if (
+            str(result.get('symbol', '')) == symbol
+            and str(result.get('action', '')).upper() == action
+        ):
+            return result
+    return None
 
-    # 今日订单
+
+def _order_execution_status(order, execution_mode, execution_results):
+    """Return a truthful user-facing status for a generated order."""
+    mode = str(execution_mode or '').upper()
+    if mode == 'LIVE_BLOCKED_BY_RULES':
+        return '未执行（风控规则拦截）'
+    if mode == 'LIVE_BLOCKED_BY_CONFIRM':
+        return '未执行（缺少 live 确认）'
+    if mode == 'SIGNAL_ONLY':
+        return '仅生成信号'
+
+    result = _matching_execution_result(order, execution_results)
+    status = str((result or {}).get('status', '')).upper()
+    message = str((result or {}).get('message', '')).strip()
+
+    if mode == 'DRY_RUN':
+        return '模拟执行（DRY-RUN）' if status == 'DRY-RUN' else '模拟结果缺失'
+    if mode == 'LIVE_CONFIRMED':
+        if status == 'FILLED_ALL':
+            return '已成交'
+        if status in {'SUBMITTING', 'SUBMITTED', 'CANCELLING', 'TIMEOUT', 'UNKNOWN'}:
+            detail = message or status
+            return f'已提交、待确认（{detail[:40]}）'
+        if status in {'FILLED_PART', 'CANCELLED_PART', 'FILL_CANCELLED'}:
+            detail = message or status
+            return f'部分成交、终态待确认（{detail[:40]}）'
+        if status:
+            detail = message or status
+            return f'未成交（{detail[:40]}）'
+        return '未确认（无执行回执）'
+    return '仅生成（执行状态未知）'
+
+
+def _build_execution_tracking(orders, positions, signals, market,
+                              execution_mode='', execution_results=None,
+                              report_mode='', account_access=None,
+                              order_api_called=None):
+    """执行层追踪 — 严格区分候选订单、模拟、拦截与真实成交。"""
+    s = "## VIII. 执行追踪\n\n"
+    execution_results = execution_results or []
+
+    if report_mode == 'RESEARCH_ONLY_COMPLETED_DAILY':
+        return s + (
+            f"**Execution Mode**: `{execution_mode or 'RESEARCH_ONLY'}`\n\n"
+            "| 边界 | 状态 |\n"
+            "|---|---|\n"
+            f"| Account Access | `{'ENABLED' if account_access else 'DISABLED'}` |\n"
+            f"| Order API Called | `{'YES' if order_api_called else 'NO'}` |\n"
+            f"| Candidate Orders | `{len(orders)}` |\n"
+            f"| Execution Results | `{len(execution_results)}` |\n\n"
+            "研究报告模式未访问账户/持仓，未生成或执行订单。\n\n"
+        )
+
+    # 今日候选订单。orders 是意图清单，只有 FILLED_ALL 才能称为已成交。
     buy_orders = [o for o in orders if o.get('action') == 'BUY']
     sell_orders = [o for o in orders if o.get('action') in ('SELL', 'STOP', 'SIGNAL_EXIT')]
     skip_reasons = []
@@ -483,26 +680,35 @@ def _build_execution_tracking(orders, positions, signals, market):
         if o.get('reason', '').startswith('[SKIP]'):
             skip_reasons.append(o)
 
-    if buy_orders:
-        s += "### 买入执行\n\n"
-        s += "| 标的 | 数量 | 价格 | 金额 | 原因 |\n"
-        s += "|------|------|------|------|------|\n"
-        for o in buy_orders:
-            cost = o.get('qty', 0) * o.get('price', 0)
-            s += f"| {o.get('symbol', '?')} | {o.get('qty', 0)} | {o.get('price', 0):.2f} | {cost:,.0f} | {o.get('reason', '')[:50]} |\n"
-
-    if sell_orders:
-        s += "\n### 卖出执行\n\n"
-        s += "| 标的 | 数量 | 价格 | 原因 |\n"
-        s += "|------|------|------|------|\n"
-        for o in sell_orders:
-            s += f"| {o.get('symbol', '?')} | {o.get('qty', 0)} | {o.get('price', 0):.2f} | {o.get('reason', '')[:50]} |\n"
+    if orders:
+        s += f"**Execution Mode**: `{execution_mode or 'UNKNOWN'}`\n\n"
+        s += "### 订单生成与执行状态\n\n"
+        s += "| 标的 | 方向 | 数量 | 价格 | 执行状态 | 原因 |\n"
+        s += "|------|------|------|------|----------|------|\n"
+        for order in orders:
+            status = _order_execution_status(
+                order, execution_mode, execution_results,
+            )
+            s += (
+                f"| {order.get('symbol', '?')} | {order.get('action', '?')} | "
+                f"{order.get('qty', 0)} | {order.get('price', 0):.2f} | "
+                f"{status} | {order.get('reason', '')[:50]} |\n"
+            )
 
     # BUY 信号未执行的原因
     signal_map = {s['symbol']: s for s in signals}
     held_syms = {p.get('symbol', '') for p in positions}
     buy_signals = [s for s in signals if s.get('fusion_level') in ('STRONG_BUY', 'BUY')]
-    unexecuted = [s for s in buy_signals if s['symbol'] not in {o.get('symbol', '') for o in buy_orders}]
+    filled_buy_symbols = {
+        result.get('symbol', '')
+        for result in execution_results
+        if str(result.get('action', '')).upper() == 'BUY'
+        and str(result.get('status', '')).upper() == 'FILLED_ALL'
+    }
+    unexecuted = [
+        sig for sig in buy_signals
+        if sig['symbol'] not in filled_buy_symbols
+    ]
 
     if unexecuted:
         s += "\n### BUY 信号未执行分析\n\n"
@@ -511,7 +717,15 @@ def _build_execution_tracking(orders, positions, signals, market):
         for sig in unexecuted:
             sym = sig['symbol']
             reason = ''
-            if sym in held_syms:
+            generated_order = next(
+                (order for order in buy_orders if order.get('symbol') == sym),
+                None,
+            )
+            if generated_order:
+                reason = _order_execution_status(
+                    generated_order, execution_mode, execution_results,
+                )
+            elif sym in held_syms:
                 reason = '已持有'
             elif sig.get('fusion_confidence', 0) < 0.65:
                 reason = f'置信度不足 ({sig["fusion_confidence"]:.0%} < 65%)'
@@ -521,14 +735,14 @@ def _build_execution_tracking(orders, positions, signals, market):
                 reason = '仓位/预算限制'
             s += f"| {sym} | {sig['fusion_level']} | {sig['fusion_score']:+.0f} | {sig.get('fusion_confidence', 0):.0%} | {reason} |\n"
 
-    if not buy_orders and not sell_orders and not unexecuted:
-        s += "本时段无执行记录。\n"
+    if not orders and not unexecuted:
+        s += "本时段无订单生成。\n"
 
     s += "\n"
     return s
 
 
-def _build_risk_dashboard(positions, signals):
+def _build_risk_dashboard(positions, signals, total_assets=0):
     """风控仪表板."""
     s = "## IX. 风控仪表板\n\n"
 
@@ -547,15 +761,21 @@ def _build_risk_dashboard(positions, signals):
             sig = sig_map.get(sym, {})
             curr_level = sig.get('fusion_level', 'N/A')
             risk_color = '🟢' if pnl >= 0 else ('🟡' if pnl > -5 else '🔴')
-            triggered = '触发止损' if p.get('triggered_stop') else '正常'
-            s += f"| {sym} | {qty} | {entry:.2f} | {cur:.2f} | {risk_color} {pnl:+.2f}% | {curr_level} | {triggered} |\n"
+            position_pct = qty * cur / total_assets if total_assets > 0 else 0
+            if p.get('triggered_stop'):
+                risk_status = '触发止损'
+            elif position_pct > 0.20:
+                risk_status = f'超配告警 {position_pct:.1%} > 20%（不自动减仓）'
+            else:
+                risk_status = '正常'
+            s += f"| {sym} | {qty} | {entry:.2f} | {cur:.2f} | {risk_color} {pnl:+.2f}% | {curr_level} | {risk_status} |\n"
     else:
         s += "当前无持仓。\n"
 
     s += "\n### 风控参数\n\n"
     s += "| 参数 | 设定值 | 说明 |\n"
     s += "|------|--------|------|\n"
-    s += "| 单只最大仓位 | 20% | 超额自动跳过 |\n"
+    s += "| 单只目标/开仓上限 | 20% | 超配仅告警，不自动减仓 |\n"
     s += "| 总仓位上限 | 80% | 硬门槛 |\n"
     s += "| 固定止损 | -12% | 无条件触发 |\n"
     s += "| 移动止损 | -12% | 高点回撤 |\n"
@@ -580,38 +800,83 @@ def _build_strategy_notes(signals, market_state, market):
 
     # XMM 零信号分析
     if len(xmm_zeros) > len(signals) * 0.5:
-        observations.append(f"XMM 因子大面积中性（{len(xmm_zeros)}/{len(signals)} 标的 XMM=0）→ 趋势不明朗，VP 和 LLM 无法独自驱动 BUY 信号（因 XMM 占 60% 权重）")
+        if any(_llm_is_audit_only(sig) for sig in signals):
+            observations.append(
+                f"XMM 因子大面积中性（{len(xmm_zeros)}/{len(signals)} 标的 XMM=0）"
+                "→ 趋势不明朗；LLM仅作审计，当前只有VP提供非XMM alpha，通常不足以独自触发 BUY"
+            )
+        else:
+            observations.append(f"XMM 因子大面积中性（{len(xmm_zeros)}/{len(signals)} 标的 XMM=0）→ 趋势不明朗，VP 和 LLM 无法独自驱动 BUY 信号（因 XMM 占 60% 权重）")
 
     # REDUCED 比例分析
     if reduced:
         reduced_pct = len(reduced) / len(signals) if signals else 0
         if reduced_pct > 0.3:
-            # 判断 REDUCED 总体方向
+            # 精确报告方向计数；平均分不能证明“多数”标的朝同一方向。
             reduced_scores = [sig.get('fusion_score', 0) for sig in reduced]
-            reduced_avg = sum(reduced_scores) / len(reduced_scores) if reduced_scores else 0
-            if reduced_avg > 0:
-                observations.append(f"REDUCED 占比偏高 ({reduced_pct:.0%}) → 多数标的处于 BUY 阈值边缘，说明有一定正向信号但强度不足")
-            else:
-                observations.append(f"REDUCED 占比偏高 ({reduced_pct:.0%}) → 多数标的处于 SELL 阈值边缘（负分），信号偏空")
+            positive_count = sum(score > 1e-9 for score in reduced_scores)
+            negative_count = sum(score < -1e-9 for score in reduced_scores)
+            neutral_count = len(reduced_scores) - positive_count - negative_count
+            observations.append(
+                f"REDUCED 占比 {reduced_pct:.0%} ({len(reduced)}/{len(signals)})："
+                f"{positive_count}偏多 / {negative_count}偏空 / {neutral_count}中性；"
+                "REDUCED 不是 BUY/SELL，仍以 Gate 与执行证据为准"
+            )
 
         # REDUCED 根因分析
         reduced_xmm_zero = [sig for sig in reduced if sig.get('raw_scores', {}).get('xmm', 0) == 0]
         if reduced_xmm_zero:
-            vp_llm_signs = []
+            effective_signs = []
             for ss in reduced_xmm_zero:
                 raw = ss.get('raw_scores', {})
-                if raw.get('vp', 0) > 0 and raw.get('llm', 0) > 0:
-                    vp_llm_signs.append('both_bull')
-                elif raw.get('vp', 0) < 0 and raw.get('llm', 0) < 0:
-                    vp_llm_signs.append('both_bear')
+                weights = ss.get('weights_used', {})
+                combined = sum(
+                    raw.get(factor, 0) * weights.get(factor, 0)
+                    for factor in ('vp', 'llm')
+                    if _factor_is_active(ss, factor)
+                )
+                if combined > 0:
+                    effective_signs.append('bull')
+                elif combined < 0:
+                    effective_signs.append('bear')
                 else:
-                    vp_llm_signs.append('mixed')
-            if vp_llm_signs.count('both_bull') > len(vp_llm_signs) / 2:
-                observations.append(f"{len(reduced_xmm_zero)}/{len(reduced)} REDUCED：VP/LLM 偏多但 XMM 中性未确认趋势，降级为 REDUCED")
-            elif vp_llm_signs.count('both_bear') > len(vp_llm_signs) / 2:
-                observations.append(f"{len(reduced_xmm_zero)}/{len(reduced)} REDUCED：VP/LLM 偏空驱动，XMM 中性未确认趋势，未触发 SELL 阈值 (-30)")
+                    effective_signs.append('neutral')
+            bull_count = effective_signs.count('bull')
+            bear_count = effective_signs.count('bear')
+            neutral_count = effective_signs.count('neutral')
+            direction_summary = (
+                f"{len(reduced_xmm_zero)}/{len(reduced)} REDUCED（XMM中性子集）："
+                f"{bull_count}偏多 / {bear_count}偏空 / {neutral_count}中性"
+            )
+            if bull_count > len(effective_signs) / 2:
+                observations.append(f"{direction_summary}，整体偏多但 XMM 中性未确认趋势")
+            elif bear_count > len(effective_signs) / 2:
+                observations.append(f"{direction_summary}，整体偏空但未触发 SELL 阈值 (-30)")
             else:
-                observations.append(f"{len(reduced_xmm_zero)}/{len(reduced)} REDUCED：因子分歧且 XMM 中性，降级观察")
+                observations.append(f"{direction_summary}，有效因子方向分散，降级观察")
+
+    partial_llm = [sig for sig in signals if sig.get('llm_status') == 'PARTIAL']
+    if partial_llm:
+        observations.append(
+            f"LLM 摘要质量：{len(partial_llm)}/{len(signals)} 标的 PARTIAL；"
+            "仅降级报告摘要，不改变既有融合分"
+        )
+    fallback_llm = [
+        sig for sig in signals
+        if (
+            sig.get('llm_status') == 'FALLBACK'
+            or sig.get('llm_route_status') == 'FALLBACK'
+        )
+    ]
+    if fallback_llm:
+        models = sorted({
+            str(sig.get('llm_model') or 'UNKNOWN')
+            for sig in fallback_llm
+        })
+        observations.append(
+            f"LLM 路由状态：{len(fallback_llm)}/{len(signals)} 标的 FALLBACK；"
+            f"实际模型 {', '.join(models)}；仅影响审计来源标记，不改变融合分"
+        )
 
     # 市场状态影响
     state_limit = MARKET_STATE_LIMITS.get(market_state, 0.40)
@@ -620,7 +885,21 @@ def _build_strategy_notes(signals, market_state, market):
     elif market_state == 'CRAB':
         observations.append(f"市场状态 CRAB → 仓位上限 {state_limit:.0%}，震荡市宜精选信号分批建仓")
     else:
-        observations.append(f"市场状态 {market_state} → 仓位上限 {state_limit:.0%}，可积极布局")
+        approved_buys = [
+            sig for sig in all_buy
+            if sig.get('gate_approved', True)
+        ]
+        if approved_buys:
+            observations.append(
+                f"市场状态 {market_state} → 仓位上限 {state_limit:.0%}；"
+                f"本轮 {len(approved_buys)} 只 BUY/STRONG_BUY 通过 Gate，"
+                "是否成交仍以 execution results 为准"
+            )
+        else:
+            observations.append(
+                f"市场状态 {market_state} → 仓位上限 {state_limit:.0%}；"
+                "本轮无通过 Gate 的 BUY/STRONG_BUY，不能仅凭市场状态建仓"
+            )
 
     # 数据新鲜度
     stale = [s for s in signals if s.get('warnings') and any('滞后' in w for w in s.get('warnings', []))]
@@ -703,7 +982,14 @@ def _vp_view(sig: dict) -> str:
 def _llm_view(sig: dict) -> str:
     """LLM 独立观点。"""
     status = sig.get('llm_status', 'OK')
-    if status != 'OK':
+    if status == 'PARTIAL':
+        route = (
+            ' · FALLBACK'
+            if sig.get('llm_route_status') == 'FALLBACK'
+            else ''
+        )
+        return f'🟡质量降级<br><sub>PARTIAL{route}</sub>'
+    if status not in ('OK', 'FALLBACK'):
         return f'⚪无数据<br><sub>{status}</sub>'
 
     raw = sig.get('raw_scores', {}).get('llm', sig.get('llm_sentiment', 0))
@@ -722,6 +1008,12 @@ def _llm_view(sig: dict) -> str:
     else:
         label = '⬜观望'
 
+    if _llm_is_audit_only(sig):
+        label += '（回退审计）' if status == 'FALLBACK' else '（审计）'
+    if status == 'FALLBACK':
+        model = sig.get('llm_model', 'UNKNOWN')
+        detail = f'FALLBACK · {model} · {detail}'
+
     return _view_cell(label, raw, detail)
 
 
@@ -730,7 +1022,7 @@ def _factor_view_summary(sig: dict) -> str:
     return '<br>'.join([
         f"XMM {_compact_view(sig, 'xmm')}",
         f"VP {_compact_view(sig, 'vp')}",
-        f"LLM {_compact_view(sig, 'llm')}",
+        f"{'LLM审计' if _llm_is_audit_only(sig) else 'LLM'} {_compact_view(sig, 'llm')}",
     ])
 
 
@@ -770,9 +1062,9 @@ def _compute_conf_v2_shadow(sig: dict) -> tuple:
     w = _CONF_V2_BASE_WEIGHTS
 
     # 各源活跃性
-    xmm_active = xmm_action != 'HOLD'
-    vp_active  = vp_dir != 'HOLD' and abs(vp_factor) > 1
-    llm_active = abs(llm_factor) > 1
+    xmm_active = _factor_is_active(sig, 'xmm') and xmm_action != 'HOLD'
+    vp_active  = _factor_is_active(sig, 'vp') and vp_dir != 'HOLD' and abs(vp_factor) > 1
+    llm_active = _factor_is_active(sig, 'llm') and abs(llm_factor) > 1
 
     sources_active = {'XMM': xmm_active, 'VP': vp_active, 'LLM': llm_active}
     total = sum(w[s] for s in w if sources_active.get(s, False))
@@ -836,29 +1128,44 @@ def _compact_view(sig: dict, factor: str) -> str:
         return f'观望({raw:+.0f})'
 
     status = sig.get('llm_status', 'OK')
-    if status != 'OK':
+    if status == 'PARTIAL':
+        return '质量降级'
+    if status not in ('OK', 'FALLBACK'):
         return '无数据'
+    prefix = '回退' if status == 'FALLBACK' else ''
     if raw >= 30:
-        return f'买入({raw:+.0f})'
+        return f'{prefix}买入({raw:+.0f})'
     if raw >= 10:
-        return f'偏多({raw:+.0f})'
+        return f'{prefix}偏多({raw:+.0f})'
     if raw <= -30:
-        return f'卖出({raw:+.0f})'
+        return f'{prefix}卖出({raw:+.0f})'
     if raw <= -10:
-        return f'偏空({raw:+.0f})'
-    return f'观望({raw:+.0f})'
+        return f'{prefix}偏空({raw:+.0f})'
+    return f'{prefix}观望({raw:+.0f})'
 
 
 def _factor_consensus_label(sig: dict) -> str:
     """三因子一致性标签。"""
     directions = [
-        _direction_bucket(sig, 'xmm'),
-        _direction_bucket(sig, 'vp'),
-        _direction_bucket(sig, 'llm'),
+        _direction_bucket(sig, factor)
+        for factor in ('xmm', 'vp', 'llm')
+        if _factor_is_active(sig, factor)
     ]
+    unavailable = 3 - len(directions)
     bullish = directions.count('bull')
     bearish = directions.count('bear')
     neutral = directions.count('neutral')
+
+    if not directions:
+        return '⚪无有效因子'
+    if unavailable:
+        if bullish and bearish:
+            return '🟡有效因子分歧'
+        if bullish:
+            return f'🟢有效因子偏多({bullish}/{len(directions)})'
+        if bearish:
+            return f'🔴有效因子偏空({bearish}/{len(directions)})'
+        return '⬜有效因子中性'
 
     if bullish == 3:
         return '🟢三因子共振多'
@@ -875,6 +1182,22 @@ def _factor_consensus_label(sig: dict) -> str:
     if bearish == 1 and neutral == 2:
         return '🔴一空两中'
     return '⬜三因子观望'
+
+
+def _factor_is_active(sig: dict, factor: str) -> bool:
+    """Only sources with live fusion weight contribute to report semantics."""
+    status = str(sig.get(f'{factor}_status', 'OK') or 'OK').upper()
+    weight = sig.get('weights_used', {}).get(factor)
+    return status in ('OK', 'FALLBACK', 'NEUTRAL') and (weight is None or weight > 0)
+
+
+def _llm_is_audit_only(sig: dict) -> bool:
+    """识别显式审计模式，并兼容仅有权重/预留字段的历史快照。"""
+    if str(sig.get('llm_alpha_mode', '')).lower() == 'audit_only':
+        return True
+    llm_weight = sig.get('weights_used', {}).get('llm')
+    llm_reserved = sig.get('reserved_weights', {}).get('llm', 0)
+    return llm_weight == 0 and llm_reserved > 0
 
 
 def _direction_bucket(sig: dict, factor: str) -> str:
@@ -959,6 +1282,7 @@ def _extract_root_cause(sig: dict) -> str:
     xmm_status = sig.get('xmm_status', '')
     vp_status = sig.get('vp_status', '')
     llm_status = sig.get('llm_status', '')
+    weights = sig.get('weights_used', {})
     stale = sig.get('stale_days', 0)
     gate_approved = sig.get('gate_approved', True)
     gate_reasons = sig.get('gate_reasons', [])
@@ -978,7 +1302,9 @@ def _extract_root_cause(sig: dict) -> str:
         parts.append(f'XMM异常[{xmm_status}]')
     if vp_status not in ('OK', ''):
         parts.append(f'VP异常[{vp_status}]')
-    if llm_status not in ('OK', ''):
+    if llm_status == 'FALLBACK':
+        parts.append('LLM回退[FALLBACK]')
+    elif llm_status not in ('OK', ''):
         parts.append(f'LLM异常[{llm_status}]')
 
     # ERROR
@@ -987,9 +1313,17 @@ def _extract_root_cause(sig: dict) -> str:
 
     # STRONG_BUY / BUY: 哪个因子做主要贡献
     if level in ('STRONG_BUY', 'BUY'):
-        contributions = [('XMM', xmm_raw), ('VP', vp_raw), ('LLM', llm_raw)]
+        contributions = [
+            (label, value)
+            for factor, label, value in (
+                ('xmm', 'XMM', xmm_raw),
+                ('vp', 'VP', vp_raw),
+                ('llm', 'LLM', llm_raw),
+            )
+            if _factor_is_active(sig, factor)
+        ]
         contributions.sort(key=lambda x: x[1], reverse=True)
-        top = contributions[0]
+        top = contributions[0] if contributions else ('有效因子', 0)
         second = contributions[1] if len(contributions) > 1 else None
         if top[1] > 30:
             parts.append(f'{top[0]}主力(+{top[1]:.0f})')
@@ -1001,11 +1335,18 @@ def _extract_root_cause(sig: dict) -> str:
     # HOLD: 解释为什么没有信号
     elif level == 'HOLD':
         if xmm_raw == 0 and vp_raw > 0:
-            parts.append('XMM中性->压分; VP偏多但权重(25%)不足以触发')
+            vp_weight = weights.get('vp', 0.25)
+            parts.append(f'XMM中性->压分; VP偏多但权重({vp_weight:.0%})不足以触发')
         elif xmm_raw == 0 and vp_raw < 0:
             parts.append('XMM中性; VP偏空->压分')
-        elif xmm_raw == 0 and vp_raw == 0:
+        elif xmm_raw == 0 and vp_raw == 0 and llm_raw == 0:
             parts.append('三因子均中性(XMM=VP=0)')
+        elif xmm_raw == 0 and vp_raw == 0:
+            if _factor_is_active(sig, 'llm'):
+                direction = '偏多' if llm_raw > 0 else '偏空'
+                parts.append(f'XMM/VP中性; LLM单独{direction}({llm_raw:+.0f})')
+            else:
+                parts.append(f'LLM审计分{llm_raw:+.0f}(未入融合)')
         elif abs(xmm_raw) < 10 and abs(vp_raw) < 10 and abs(llm_raw) < 10:
             parts.append('三因子均中性(-10~+10)')
         elif abs(llm_raw) < 10 and abs(vp_raw) < 10:
@@ -1020,11 +1361,15 @@ def _extract_root_cause(sig: dict) -> str:
     # REDUCED: 为什么在 BUY 边缘但未突破
     elif level == 'REDUCED':
         if xmm_raw == 0:
-            # XMM=0 压低了融合分 — 根据 VP+LLM 的实际方向判断
-            vp_llm_combined = vp_raw * 0.25 + llm_raw * 0.15
-            direction = '偏多' if vp_llm_combined > 0 else '偏空'
-            max_possible = (vp_raw * 0.25 + llm_raw * 0.15) / 0.40
-            parts.append(f'XMM=0 压分(上限{max_possible:.0f}); VP+LLM{direction}')
+            active = []
+            combined = 0.0
+            for factor, factor_raw in (('vp', vp_raw), ('llm', llm_raw)):
+                if _factor_is_active(sig, factor):
+                    active.append(factor.upper())
+                    combined += factor_raw * weights.get(factor, 0)
+            direction = '偏多' if combined > 0 else ('偏空' if combined < 0 else '中性')
+            names = '+'.join(active) if active else '无有效非XMM因子'
+            parts.append(f'XMM中性; 有效因子{names}{direction}({combined:+.1f})')
         elif xmm_raw > 0 and vp_raw < 0:
             parts.append(f'XMM偏多(+{xmm_raw:.0f}) 但 VP偏空({vp_raw:.0f}) 抵消')
         elif xmm_raw < 0 and vp_raw > 0:
@@ -1051,8 +1396,28 @@ def _extract_root_cause(sig: dict) -> str:
 
     # 额外警告 (排除 Gate 拦截相关，已在上面处理)
     gate_keywords = ['置信度', '融合得分', '等级:', 'Gate']
-    for w in warnings:
-        short_w = w[:25].replace('|', ' ')
+    # 数据源诊断比通用审计提示更有行动价值，优先保留在有限的根因单元格中。
+    def warning_priority(warning):
+        warning_text = str(warning)
+        if re.search(r'insufficient data:\s*\d+\s*<\s*\d+', warning_text):
+            return 0
+        if re.search(r'NVIDIA NIM.*(?:超时|API错误)', warning_text, re.IGNORECASE):
+            return 0
+        if 'LLM处于审计模式' in warning_text:
+            return 2
+        return 1
+
+    prioritized_warnings = sorted(
+        warnings,
+        key=warning_priority,
+    )
+    for w in prioritized_warnings:
+        warning_text = str(w).replace('|', ' ')
+        insufficient = re.search(r'insufficient data:\s*(\d+)\s*<\s*(\d+)', warning_text)
+        if insufficient:
+            short_w = f'VP数据不足 {insufficient.group(1)}/{insufficient.group(2)}'
+        else:
+            short_w = _safe_cell_text(warning_text, 40)
         # 跳过 Gate 相关警告
         if any(kw in short_w for kw in gate_keywords):
             continue
@@ -1135,12 +1500,16 @@ def _get_llm_detail(sig: dict) -> str:
     raw = sig.get('raw_scores', {})
     llm_raw = raw.get('llm', 0)
 
-    if llm_status != 'OK':
+    if llm_status == 'PARTIAL':
+        brief = llm_summary[:20].replace('|', ' ') if llm_summary else ''
+        return f'[PARTIAL] {brief}'.rstrip()
+    if llm_status not in ('OK', 'FALLBACK'):
         return f'[{llm_status}]'
 
     if llm_summary:
         brief = llm_summary[:20].replace('|', ' ')
-        return f'{brief}'
+        prefix = '[FALLBACK] ' if llm_status == 'FALLBACK' else ''
+        return f'{prefix}{brief}'
     elif llm_event:
         return f'{llm_event}({llm_raw:+.0f})'
     elif llm_raw == 0:
