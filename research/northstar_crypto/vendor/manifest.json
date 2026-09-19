@@ -1,0 +1,17 @@
+[
+  {
+    "source": "E:\\quant\\research\\northstar_d1\\config.py",
+    "file": "config.py",
+    "sha256": "c35b73d9d27c2a264ce1596a587f765f63318c010aa351331f7dc24b8768542a"
+  },
+  {
+    "source": "E:\\quant\\research\\northstar_d1\\factors.py",
+    "file": "factors.py",
+    "sha256": "1fec506ea694168f15ac2947eadbe94d07b64f252e3bcdb9d535c8b84e28804f"
+  },
+  {
+    "source": "E:\\quant\\research\\northstar_d1\\model.py",
+    "file": "model.py",
+    "sha256": "927ec34441f5db8d05206c29223fe2acb84803b1235091f29f8dcee2ca2064aa"
+  }
+]

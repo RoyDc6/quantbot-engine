@@ -1,0 +1,15 @@
+
+生成 Crypto 日报，使用 Northstar Crypto 的 OKX 模拟盘现货线路；Roy 已授权模拟盘下单，资金范围为其 OKX 模拟账户全部权益。
+
+固定合同：E:\quant\research\northstar_crypto\README.md。只执行本任务，不调用旧 FusionController、旧 Crypto 扫描器、VP、V7/V8，不修改 HK/US 或其他任务。模拟标志固定 x-simulated-trading=1；实盘关闭。所有订单只允许受控入口按 Northstar 因子和原仓位上限生成，LLM 不自主下单、不补写仓位建议。
+
+每次运行只执行一次受控入口：
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File E:\quant\research\northstar_crypto\run_daily.ps1
+
+入口读取全部模拟账户权益、余额和持仓，采集已确认日线，计算五个现货信号，按实际资金执行模拟 IOC 订单，回查成交并逐币对账，生成历史诊断及 Markdown。使用本轮输出的 report 与 artifact 绝对路径。不要为保存结果、查询状态或重复下单而重跑入口。退出码非零也先读取本轮产物；PARTIAL、UNKNOWN、BLOCKED 和余额差异必须如实交付，不放宽门槛、不删除执行日志、不补单、不改配置。
+
+读取本轮 artifact.json、funding.json 和 manifest.json，核对 run_id、目录及文件哈希。资金基数为当前 OKX 模拟账户全部权益的 100%，区分 USD 估值与 USDT 等值；不使用 85 USDT 或新建本地虚拟本金。单标的 20%、总暴露 60% 原限制保留。展示实际可用资产、冻结量、订单 ordId、累计成交、均价、手续费和对账状态。ACK 不等于成交；撤销 IOC 也可能部分成交；重复运行的历史回报不算本轮新订单。UNKNOWN 不得认定为失败后重发。
+
+保留 OKX_DEMO_FORWARD / NOT_EVALUATED 边界。ENGINEERING_CONNECTIVITY_TEST 是独立工程联调，不算策略交易或策略收益。候选历史回放为本地研究，不能当作 OKX 模拟成交收益、样本外或实盘业绩。LLM 的 NOT_CONFIGURED / NOT_EVALUATED 原样保留；数据失败不能写成 HOLD。
+
+最终交付本轮 Crypto日报.md 一个文件；若当前工具不能附文件，则完整呈现 Markdown 并注明绝对路径。不要重新编写数字表，不上传 JSON、数据库、凭证或源码，不覆盖旧 scan_result.json 或旧日报。没有生成本轮报告时仅报告具体失败，不使用历史成功文件。禁止输出凭证文件内容、认证头或签名。

@@ -1,0 +1,52 @@
+{
+  "protected_files": 617,
+  "changed_protected_files": [],
+  "workbuddy": {
+    "changed_fields": {
+      "automation-1784782976054": [
+        "prompt"
+      ]
+    },
+    "crypto_prompt_matches": true,
+    "crypto_status": "ACTIVE",
+    "crypto_schedule": "FREQ=DAILY;BYHOUR=12;BYMINUTE=0",
+    "removed": [],
+    "added": []
+  },
+  "tests": {
+    "count": 18,
+    "failures": 0,
+    "errors": 0
+  },
+  "scheduler_unchanged": true,
+  "scheduler_count": 4,
+  "final_run": {
+    "run_id": "20260903T030623-5942da3489",
+    "status": "COMPLETE",
+    "paper_status": "DUPLICATE_SUPPRESSED",
+    "data_counts": {
+      "BUY": 0,
+      "DATA_ERROR": 0,
+      "HOLD": 5,
+      "SELL": 0
+    },
+    "report_hashes_valid": true,
+    "quality_checks": {
+      "data_complete": true,
+      "llm_input_readable": true,
+      "paper_not_blocked": true,
+      "paper_risk_resolved": true,
+      "quotes_valid": true,
+      "requested_comparison_complete": true
+    },
+    "actual_exchange_orders": 0
+  },
+  "python_syntax_files": 17,
+  "incidental_us_observation": {
+    "path": "E:\\quant\\research\\northstar_d1\\output\\us\\.runtime\\latest.json",
+    "status": "FAILED",
+    "run_id": "NORTHSTAR_D1_US-20260903T1000-A01",
+    "reason": "run gate checks did not all pass",
+    "changed_by_this_implementation": false
+  }
+}

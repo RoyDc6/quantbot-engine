@@ -1,0 +1,28 @@
+{
+  "version": "0.1.0",
+  "files": {
+    ".gitignore": "725c54fb129748b57ac09fe74998f09dc7758637e3f9d53b9b0071aca93525b2",
+    "config.py": "d3ee57e18fe0dbbf42cb8cb4bdc3e77e6dd54fbc2b57dada2ee6fc6b885c970d",
+    "events.py": "00a38973a212eec894cb1921fea60b4b9217516ad20955e8a5c243bb0f69e790",
+    "io_utils.py": "3b0c09b0d5e8979851b518712cec89ea4aa93d02a80c71da8736483af1729533",
+    "market.py": "e011f7656aebccd45925588218b69cb0457f343436d6ace7062d4e2d8e700052",
+    "portfolio.py": "cead419454daa33378ec8cdd990ec1cc60fa0845a3b9b05ca577a26dde9088b4",
+    "README.md": "05ee510c9f35ddd7fa8ba3b4fe7a2b4d4aefd49a76109cc3f9726aa0da36548d",
+    "replay.py": "7765ef324cff58b1db5dfbe9fe6fdfa4a9cf13f92d02f02fa257acfb942ee72a",
+    "report.py": "820ef7eb32af46f53aa9d823d3cdadb27a5cb515fce6051192f46e6f7c7e5862",
+    "runner.py": "e72630a62d00933133a4bad1345b840c8dfd2e9bd457e8a6061fc30deed9e7ff",
+    "run_daily.ps1": "23d84b9113aa4fe48e12788cf5ad70aec6ac1009629a9e7d9750c6500717c44d",
+    "strategy.py": "cc7dd242c750abbd271af341d93651dbc263e1b9519edecd92ef53132e216837",
+    "WORKBUDDY_PROMPT.txt": "31e4114977a316ad6000d716b5f09ccb05c277e16a63e41050afaa9d491e847f",
+    "__init__.py": "05ce8558b7ba43e0761fd953a3f2021455af29b0cfa1ea76d49217665e15d62d",
+    "__main__.py": "183db9d249a98ef3ddb2a0acb9e112542a01d7c4d313d1f0ed9b4bc2e30225cb",
+    "tests\\test_pipeline.py": "51f531e4caf3133c59865e1f192a8d58320da52c460e1c02210c4380acb3c1d6",
+    "tests\\__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "vendor\\config.py": "c35b73d9d27c2a264ce1596a587f765f63318c010aa351331f7dc24b8768542a",
+    "vendor\\factors.py": "1fec506ea694168f15ac2947eadbe94d07b64f252e3bcdb9d535c8b84e28804f",
+    "vendor\\manifest.json": "ac4e36801a0309794e9db0ab6d6e308773b092332a0ce83bc30e600bf6a368ae",
+    "vendor\\model.py": "927ec34441f5db8d05206c29223fe2acb84803b1235091f29f8dcee2ca2064aa",
+    "vendor\\__init__.py": "a56b00a9869e121723b9e54f5e05b535fd092fedcc7122c5ddc3fcbee48c0fca",
+    "实施验收.md": "e81fb7a91530a89442968ef7f271e77461fdec91da52a17753885b28066e7cb3"
+  }
+}

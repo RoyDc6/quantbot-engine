@@ -1,0 +1,23 @@
+test_concurrent_duplicate_commits_once (research.northstar_crypto.tests.test_pipeline.AccountingTests.test_concurrent_duplicate_commits_once) ... ok
+test_failed_trim_cannot_finance_new_risk (research.northstar_crypto.tests.test_pipeline.AccountingTests.test_failed_trim_cannot_finance_new_risk) ... ok
+test_hold_no_rebalance_and_configuration_pinned (research.northstar_crypto.tests.test_pipeline.AccountingTests.test_hold_no_rebalance_and_configuration_pinned) ... ok
+test_idempotency_revision_and_atomic_rollback (research.northstar_crypto.tests.test_pipeline.AccountingTests.test_idempotency_revision_and_atomic_rollback) ... ok
+test_nan_configuration_rejected (research.northstar_crypto.tests.test_pipeline.AccountingTests.test_nan_configuration_rejected) ... ok
+test_portfolio_gross_cap_and_min_size (research.northstar_crypto.tests.test_pipeline.AccountingTests.test_portfolio_gross_cap_and_min_size) ... ok
+test_same_accounting_in_memory_and_sqlite (research.northstar_crypto.tests.test_pipeline.AccountingTests.test_same_accounting_in_memory_and_sqlite) ... ok
+test_sell_reduces_and_cannot_open_short (research.northstar_crypto.tests.test_pipeline.AccountingTests.test_sell_reduces_and_cannot_open_short) ... ok
+test_sixty_percent_signal_capped_at_twenty (research.northstar_crypto.tests.test_pipeline.AccountingTests.test_sixty_percent_signal_capped_at_twenty) ... ok
+test_confirm_and_utc_latest (research.northstar_crypto.tests.test_pipeline.DataTests.test_confirm_and_utc_latest) ... ok
+test_future_confirmation_and_utc8_rejected (research.northstar_crypto.tests.test_pipeline.DataTests.test_future_confirmation_and_utc8_rejected) ... ok
+test_insufficient_confirmed (research.northstar_crypto.tests.test_pipeline.DataTests.test_insufficient_confirmed) ... ok
+test_missing_duplicate_stale_invalid_and_nonfinite (research.northstar_crypto.tests.test_pipeline.DataTests.test_missing_duplicate_stale_invalid_and_nonfinite) ... ok
+test_private_route_cannot_be_called (research.northstar_crypto.tests.test_pipeline.DataTests.test_private_route_cannot_be_called) ... ok
+test_quote_time_and_spread (research.northstar_crypto.tests.test_pipeline.DataTests.test_quote_time_and_spread) ... ok
+test_data_error_is_not_hold_and_no_forward_db_on_replay (research.northstar_crypto.tests.test_pipeline.PipelineTests.test_data_error_is_not_hold_and_no_forward_db_on_replay) ... ok
+test_llm_future_record_rejected (research.northstar_crypto.tests.test_pipeline.PipelineTests.test_llm_future_record_rejected) ... ok
+test_prefix_consistency_and_td_ablation (research.northstar_crypto.tests.test_pipeline.PipelineTests.test_prefix_consistency_and_td_ablation) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 0.522s
+
+OK

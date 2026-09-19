@@ -1,0 +1,12 @@
+{
+  "changed_fields": {
+    "automation-1784782976054": [
+      "prompt"
+    ]
+  },
+  "crypto_prompt_matches": true,
+  "crypto_status": "ACTIVE",
+  "crypto_schedule": "FREQ=DAILY;BYHOUR=12;BYMINUTE=0",
+  "removed": [],
+  "added": []
+}
