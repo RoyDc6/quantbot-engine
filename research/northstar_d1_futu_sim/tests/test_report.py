@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from research.northstar_d1_futu_sim.report import build_report
+from research.northstar_d1_futu_sim.report import _execution_section, build_report
 
 
 def _research_artifacts(root: Path, market: str, run_id: str, verdict="RUN_PASS"):
@@ -61,6 +61,13 @@ def _execution_receipt(root: Path, market: str, run_id: str, source: Path):
         },
         "reconciliation": "PASS",
         "account_before": {"total_assets": 100000, "cash": 90000},
+        "account_after": {"total_assets": 99000, "cash": 80000},
+        "post_execution_snapshot_at_utc": "2026-09-16T13:36:00+00:00",
+        "cash_sizing": {
+            "spendable_cash": 89100,
+            "projected_buy_cost": 1000,
+            "projected_cash_after": 88100,
+        },
         "planned_orders": [{"symbol": "AMD.US", "action": "BUY", "qty": 10, "price": 100}],
         "results": [{"order_id": "1", "symbol": "AMD.US", "action": "BUY", "qty": 10, "price": 100, "status": "FILLED_ALL", "dealt_qty": 10, "dealt_avg_price": 100}],
         "positions_after": [{"symbol": "AMD.US", "qty": 10, "cost_price": 100, "market_val": 1000}],
@@ -92,7 +99,31 @@ def test_report_combines_same_run_signal_and_execution(tmp_path):
     assert "| AMD.US | BUY |" in text
     assert "## Futu 模拟执行与对账" in text
     assert "FILLED_ALL" in text
+    assert "执行前模拟账户现金：90,000.00" in text
+    assert "执行后模拟账户现金：80,000.00" in text
     assert "real_trading_allowed=false" in text
+
+
+def test_execution_section_never_substitutes_before_account_for_missing_after_snapshot(tmp_path):
+    lines = _execution_section(tmp_path / "receipt.json", {
+        "reconciliation": "ATTENTION_REQUIRED",
+        "account_before": {"total_assets": 100_000, "cash": 90_000},
+        "account_after": None,
+        "results": [{
+            "order_id": "1", "symbol": "AMD.US", "action": "BUY", "qty": 10,
+            "price": 100, "status": "SUBMITTED", "dealt_qty": 0,
+        }],
+        "unresolved_orders": [{
+            "order_id": "1", "symbol": "AMD.US", "action": "BUY",
+            "status": "SUBMITTED", "dealt_qty": 0,
+        }],
+    })
+    text = "\n".join(lines)
+
+    assert "执行后模拟账户现金：UNKNOWN" in text
+    assert "不能用执行前现金替代" in text
+    assert "存在未终态订单" in text
+    assert "不会自动重发" in text
 
 
 def test_failed_signal_report_never_falls_back_to_old_execution(tmp_path):

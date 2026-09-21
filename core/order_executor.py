@@ -156,12 +156,12 @@ class OrderExecutor:
                     return results
 
             for order in buy_orders:
-                if any(r.get('status') in OrderStatus.uncertain_set() for r in results):
+                if any(r.get('status') in OrderStatus.blocking_set() for r in results):
                     skipped = {
                         **order,
                         'futu_code': to_futu_code(order['symbol']),
                         'status': 'SKIP',
-                        'message': 'LIVE BUY skipped after uncertain prior order',
+                        'message': 'LIVE BUY skipped after non-terminal prior order',
                     }
                     results.append(skipped)
                     self.trade_log.append(skipped)
@@ -177,6 +177,7 @@ class OrderExecutor:
 
             journal.reconcile(self._adapter)
             journal.apply_stop_side_effects(risk_manager)
+            self._sync_results_from_journal(journal, results)
             return results
         finally:
             journal.release_lease()
@@ -195,26 +196,35 @@ class OrderExecutor:
             journal.reconcile(self._adapter, include_history=False)
             journal.apply_stop_side_effects(risk_manager)
 
-            pending = []
-            for result in tracked:
-                entry = journal.get_order(result['intent_id'])
-                if not entry:
-                    continue
-                result.update({
-                    'order_id': entry.get('order_id', result.get('order_id', '')),
-                    'status': entry.get('status', result.get('status', '')),
-                    'futu_status': entry.get('futu_status', ''),
-                    'dealt_qty': entry.get('dealt_qty', 0),
-                    'dealt_avg_price': entry.get('dealt_avg_price', 0),
-                    'filled_at': entry.get('filled_at', ''),
-                })
-                if entry.get('status') not in OrderStatus.terminal_set():
-                    pending.append(result)
+            pending = self._sync_results_from_journal(journal, tracked)
 
             if not pending or self._monotonic() >= deadline:
                 return
             remaining = max(0.0, deadline - self._monotonic())
             self._sleep(min(self.terminal_poll_interval_seconds, remaining))
+
+    @staticmethod
+    def _sync_results_from_journal(journal, results):
+        """Refresh result snapshots and return entries that remain non-terminal."""
+        pending = []
+        for result in results:
+            intent_id = result.get('intent_id')
+            if not intent_id:
+                continue
+            entry = journal.get_order(intent_id)
+            if not entry:
+                continue
+            result.update({
+                'order_id': entry.get('order_id', result.get('order_id', '')),
+                'status': entry.get('status', result.get('status', '')),
+                'futu_status': entry.get('futu_status', ''),
+                'dealt_qty': entry.get('dealt_qty', 0),
+                'dealt_avg_price': entry.get('dealt_avg_price', 0),
+                'filled_at': entry.get('filled_at', ''),
+            })
+            if entry.get('status') not in OrderStatus.terminal_set():
+                pending.append(result)
+        return pending
 
     def _place_single_order(self, order, market, journal=None, risk_manager=None):
         """执行单笔订单。使用 FutuAdapter 统一下单。"""

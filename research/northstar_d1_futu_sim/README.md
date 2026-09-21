@@ -9,8 +9,16 @@
 - 每个 Northstar `run_id` 只消费一次，预留失败也禁止盲目重发；
 - HK/US 使用独立 SQLite 订单日志、租约、回执与消费标记；
 - 未决订单先对账，存在未决或未知状态时禁止新订单；
+- `SUBMITTED`、`FILLED_PART` 等任何非终态订单均保持 `ATTENTION_REQUIRED`，不会自动重发；
+- BUY 使用已结算现金预算，默认保留 1% 现金和 0.15% 执行成本缓冲，不预支未成交卖单资金；
+- 回执和日报分别保存执行前、执行后账户快照，缺少执行后快照时失败关闭；
 - 报价、账户、持仓或源文件哈希不完整时失败关闭；
 - 不包含、也不允许 `TrdEnv.REAL`。
+
+现金缓冲可通过环境变量调整：
+
+- `NORTHSTAR_SIM_CASH_BUFFER_FRACTION`，默认 `0.01`；
+- `NORTHSTAR_SIM_EXECUTION_COST_BUFFER_FRACTION`，默认 `0.0015`。
 
 入口：
 

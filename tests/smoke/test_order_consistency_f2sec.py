@@ -223,6 +223,46 @@ def test_live_buy_skipped_unless_all_sells_filled(tmp_path, monkeypatch):
     assert results[1]['status'] == 'SKIP'
 
 
+def test_live_second_buy_skipped_after_first_buy_remains_nonterminal(tmp_path, monkeypatch):
+    monkeypatch.setattr(order_executor_module, 'FUTU_AVAILABLE', True)
+    executor = OrderExecutor(
+        dry_run=False,
+        journal_factory=_journal_factory(tmp_path),
+        terminal_poll_timeout_seconds=0,
+    )
+    adapter = FakeAdapter([
+        PlaceOrderResult(
+            status=OrderStatus.SUBMITTED,
+            order_id='BUY-1',
+            futu_status='SUBMITTED',
+        )
+    ])
+    executor._adapter = adapter
+
+    results = executor.execute_orders([
+        {
+            'symbol': 'AAPL.US',
+            'action': 'BUY',
+            'qty': 10,
+            'price': 100,
+            'lot_size': 1,
+            'intent_type': 'SIGNAL_BUY_A',
+        },
+        {
+            'symbol': 'MSFT.US',
+            'action': 'BUY',
+            'qty': 10,
+            'price': 100,
+            'lot_size': 1,
+            'intent_type': 'SIGNAL_BUY_B',
+        },
+    ])
+
+    assert results[0]['status'] == OrderStatus.SUBMITTED.value
+    assert results[1]['status'] == 'SKIP'
+    assert len(adapter.place_calls) == 1
+
+
 def test_query_result_require_fails_closed():
     with pytest.raises(RuntimeError, match='positions failed'):
         QueryResult(False, error='network timeout').require('positions')

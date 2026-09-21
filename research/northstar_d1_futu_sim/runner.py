@@ -26,6 +26,8 @@ NORTHSTAR_OUTPUT = ROOT.parent / "northstar_d1" / "output"
 RUNTIME = ROOT / "runtime"
 RECEIPTS = ROOT / "receipts"
 CONSUMED = RUNTIME / "consumed"
+DEFAULT_CASH_BUFFER_FRACTION = 0.01
+DEFAULT_EXECUTION_COST_BUFFER_FRACTION = 0.0015
 
 
 def _sha256(path: Path) -> str:
@@ -138,6 +140,90 @@ def build_orders(
     return orders, skipped
 
 
+def _configured_fraction(name: str, default: float, *, upper_exclusive: float | None = None) -> float:
+    raw = os.environ.get(name)
+    try:
+        value = default if raw is None else float(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be numeric") from exc
+    if (
+        not math.isfinite(value)
+        or value < 0
+        or (upper_exclusive is not None and value >= upper_exclusive)
+    ):
+        raise RuntimeError(f"{name} is outside the allowed range")
+    return value
+
+
+def _apply_cash_budget(
+    orders: list[dict[str, Any]],
+    account: dict[str, Any],
+    *,
+    cash_buffer_fraction: float = DEFAULT_CASH_BUFFER_FRACTION,
+    execution_cost_buffer_fraction: float = DEFAULT_EXECUTION_COST_BUFFER_FRACTION,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+    """Cap BUY quantities to settled cash without changing model intents."""
+    if not 0 <= cash_buffer_fraction < 1:
+        raise ValueError("cash_buffer_fraction must be in [0, 1)")
+    if execution_cost_buffer_fraction < 0:
+        raise ValueError("execution_cost_buffer_fraction must be non-negative")
+
+    cash_before = max(0.0, float(account.get("cash") or 0))
+    spendable_cash = cash_before * (1 - cash_buffer_fraction)
+    remaining_cash = spendable_cash
+    executable: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    projected_buy_cost = 0.0
+
+    for original in orders:
+        order = dict(original)
+        requested_qty = int(order.get("qty") or 0)
+        order["requested_qty"] = requested_qty
+        order["accepted_qty"] = requested_qty
+        if str(order.get("action") or "").upper() != "BUY":
+            executable.append(order)
+            continue
+
+        price = float(order.get("price") or 0)
+        lot_size = max(1, int(order.get("lot_size") or 1))
+        reserved_unit_cost = price * (1 + execution_cost_buffer_fraction)
+        max_qty = 0
+        if reserved_unit_cost > 0:
+            max_qty = math.floor(remaining_cash / reserved_unit_cost / lot_size) * lot_size
+        accepted_qty = min(requested_qty, max_qty)
+        accepted_qty = math.floor(max(0, accepted_qty) / lot_size) * lot_size
+
+        if accepted_qty <= 0:
+            skipped.append({
+                "symbol": order.get("symbol"),
+                "action": "BUY",
+                "reason": "CASH_BUFFER_CAPPED",
+                "requested_qty": requested_qty,
+                "accepted_qty": 0,
+            })
+            continue
+
+        order["qty"] = accepted_qty
+        order["accepted_qty"] = accepted_qty
+        reserved_cost = accepted_qty * reserved_unit_cost
+        projected_buy_cost += reserved_cost
+        remaining_cash = max(0.0, remaining_cash - reserved_cost)
+        if accepted_qty < requested_qty:
+            order["sizing_adjustment"] = "CASH_BUFFER_CAPPED"
+        executable.append(order)
+
+    metadata = {
+        "cash_before": cash_before,
+        "cash_buffer_fraction": cash_buffer_fraction,
+        "execution_cost_buffer_fraction": execution_cost_buffer_fraction,
+        "spendable_cash": spendable_cash,
+        "projected_buy_cost": projected_buy_cost,
+        "projected_cash_after": remaining_cash,
+        "sell_proceeds_assumed": False,
+    }
+    return executable, skipped, metadata
+
+
 def _journal_factory(market: str) -> OrderJournal:
     return OrderJournal(
         market,
@@ -185,7 +271,11 @@ def _finish_source(marker: Path, reconciliation: str, receipt_path: Path) -> Non
     os.replace(tmp, marker)
 
 
-def _reconcile_existing_orders(market: str, adapter: FutuAdapter) -> list[dict[str, Any]]:
+def _reconcile_existing_orders(
+    market: str,
+    adapter: FutuAdapter,
+    results: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     journal = _journal_factory(market)
     token = journal.acquire_lease()
     if not token:
@@ -193,6 +283,21 @@ def _reconcile_existing_orders(market: str, adapter: FutuAdapter) -> list[dict[s
         raise RuntimeError(f"{market} reconciliation lease is already ACTIVE")
     try:
         journal.reconcile(adapter)
+        for result in results or []:
+            intent_id = result.get("intent_id")
+            if not intent_id:
+                continue
+            entry = journal.get_order(intent_id)
+            if not entry:
+                continue
+            result.update({
+                "order_id": entry.get("order_id", result.get("order_id", "")),
+                "status": entry.get("status", result.get("status", "")),
+                "futu_status": entry.get("futu_status", ""),
+                "dealt_qty": entry.get("dealt_qty", 0),
+                "dealt_avg_price": entry.get("dealt_avg_price", 0),
+                "filled_at": entry.get("filled_at", ""),
+            })
         return journal.unresolved_orders()
     finally:
         journal.release_lease()
@@ -229,7 +334,23 @@ def run(
     if set(symbols) - set(quotes):
         raise RuntimeError(f"missing quotes: {sorted(set(symbols) - set(quotes))}")
 
-    orders, skipped = build_orders(payload, account, positions_before, quotes)
+    strategy_orders, skipped = build_orders(payload, account, positions_before, quotes)
+    cash_buffer_fraction = _configured_fraction(
+        "NORTHSTAR_SIM_CASH_BUFFER_FRACTION",
+        DEFAULT_CASH_BUFFER_FRACTION,
+        upper_exclusive=1,
+    )
+    execution_cost_buffer_fraction = _configured_fraction(
+        "NORTHSTAR_SIM_EXECUTION_COST_BUFFER_FRACTION",
+        DEFAULT_EXECUTION_COST_BUFFER_FRACTION,
+    )
+    orders, cash_skipped, cash_sizing = _apply_cash_budget(
+        strategy_orders,
+        account,
+        cash_buffer_fraction=cash_buffer_fraction,
+        execution_cost_buffer_fraction=execution_cost_buffer_fraction,
+    )
+    skipped.extend(cash_skipped)
     results: list[dict[str, Any]] = []
     executor_error = ""
     source_sha256 = _sha256(source_path)
@@ -277,17 +398,51 @@ def run(
         executor = OrderExecutor(dry_run=True)
         results = executor.execute_orders(orders)
 
-    positions_after_q = adapter.get_positions(market)
-    positions_after = positions_after_q.data if positions_after_q.ok else None
+    if execute_sim and source_reserved:
+        try:
+            unresolved_orders = _reconcile_existing_orders(market, adapter, results)
+        except Exception as exc:
+            detail = f"POST_SUBMIT_RECONCILIATION_FAILED: {exc}"
+            executor_error = f"{executor_error}; {detail}" if executor_error else detail
+
+    snapshot_errors: list[str] = []
+    try:
+        account_after_q = adapter.get_account_info(market)
+        account_after = account_after_q.data if account_after_q.ok else None
+        if not account_after_q.ok:
+            snapshot_errors.append(
+                f"ACCOUNT_AFTER_FAILED: {getattr(account_after_q, 'error', '') or 'unknown error'}"
+            )
+    except Exception as exc:
+        account_after = None
+        snapshot_errors.append(f"ACCOUNT_AFTER_FAILED: {exc}")
+    try:
+        positions_after_q = adapter.get_positions(market)
+        positions_after = positions_after_q.data if positions_after_q.ok else None
+        if not positions_after_q.ok:
+            snapshot_errors.append(
+                f"POSITIONS_AFTER_FAILED: {getattr(positions_after_q, 'error', '') or 'unknown error'}"
+            )
+    except Exception as exc:
+        positions_after = None
+        snapshot_errors.append(f"POSITIONS_AFTER_FAILED: {exc}")
     statuses = [str(r.get("status") or "") for r in results]
     uncertain = sorted(set(statuses) & OrderStatus.uncertain_set())
+    nonterminal = sorted(set(statuses) & OrderStatus.blocking_set()) if execute_sim else []
     reconciliation = (
         "ATTENTION_REQUIRED"
-        if executor_error or uncertain or unresolved_orders or positions_after is None
+        if (
+            executor_error
+            or nonterminal
+            or unresolved_orders
+            or snapshot_errors
+            or account_after is None
+            or positions_after is None
+        )
         else "PASS"
     )
     receipt = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "mode": "FUTU_SIM_FORWARD",
         "real_trading_allowed": False,
         "research_status": payload.get("validation_status"),
@@ -304,16 +459,22 @@ def run(
         },
         "connection": connection_message,
         "account_before": account,
+        "account_after": account_after,
         "positions_before": positions_before,
         "quotes": quotes,
+        "strategy_orders": strategy_orders,
         "planned_orders": orders,
+        "cash_sizing": cash_sizing,
         "skipped_intents": skipped,
         "results": results,
         "executor_error": executor_error or None,
         "unresolved_orders": unresolved_orders,
         "positions_after": positions_after,
+        "post_execution_snapshot_at_utc": datetime.now(timezone.utc).isoformat(),
+        "post_execution_snapshot_errors": snapshot_errors,
         "reconciliation": reconciliation,
         "uncertain_statuses": uncertain,
+        "nonterminal_statuses": nonterminal,
     }
     RECEIPTS.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%dT%H%M%S")

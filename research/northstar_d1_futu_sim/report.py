@@ -172,30 +172,61 @@ def _demote_markdown(markdown: str) -> list[str]:
 
 
 def _execution_section(path: Path, receipt: dict[str, Any]) -> list[str]:
-    account = receipt.get("account_before") or {}
+    account_before = receipt.get("account_before") or {}
+    account_after = receipt.get("account_after")
+    account = account_after or {}
     lines = [
         "## Futu 模拟执行与对账",
         "",
         f"- 执行回执：`{path}`",
         f"- 对账状态：`{receipt.get('reconciliation') or 'UNKNOWN'}`",
-        f"- 模拟账户资产：{_money(account.get('total_assets'))}",
-        f"- 模拟账户现金：{_money(account.get('cash'))}",
+        f"- 执行后快照时间：`{receipt.get('post_execution_snapshot_at_utc') or 'N/A'}`",
+        f"- 执行前模拟账户现金：{_money(account_before.get('cash'))}",
+        f"- 执行后模拟账户资产：{_money(account.get('total_assets'))}",
+        f"- 执行后模拟账户现金：{_money(account.get('cash'))}",
         "",
         "### 本轮计划与跳过项",
         "",
     ]
+    if account_after is None:
+        lines.extend(["- ⚠️ 回执缺少执行后账户快照，不能用执行前现金替代。", ""])
+    for error in receipt.get("post_execution_snapshot_errors") or []:
+        lines.append(f"- 快照错误：`{error}`")
+    if receipt.get("post_execution_snapshot_errors"):
+        lines.append("")
+    cash_sizing = receipt.get("cash_sizing") or {}
+    if cash_sizing:
+        lines.extend([
+            f"- 可执行现金预算：{_money(cash_sizing.get('spendable_cash'))}",
+            f"- 预计买入占用：{_money(cash_sizing.get('projected_buy_cost'))}",
+            f"- 预计剩余现金：{_money(cash_sizing.get('projected_cash_after'))}",
+            "- 预算不预支未成交卖单资金。",
+            "",
+        ])
     planned = receipt.get("planned_orders") or []
     if planned:
-        lines.extend(["| 标的 | 动作 | 数量 | 参考限价 |", "|---|---:|---:|---:|"])
+        lines.extend([
+            "| 标的 | 动作 | 策略数量 | 可执行数量 | 参考限价 | 调整 |",
+            "|---|---:|---:|---:|---:|---|",
+        ])
         for item in planned:
             lines.append(
-                f"| {item.get('symbol')} | {item.get('action')} | {item.get('qty')} | {_money(item.get('price'))} |"
+                f"| {item.get('symbol')} | {item.get('action')} | "
+                f"{item.get('requested_qty', item.get('qty'))} | {item.get('qty')} | "
+                f"{_money(item.get('price'))} | {item.get('sizing_adjustment') or '-'} |"
             )
     else:
         lines.append("- 本轮无下单差额。")
     for item in receipt.get("skipped_intents") or []:
+        quantity = ""
+        if "requested_qty" in item:
+            quantity = (
+                f"（策略数量 {item.get('requested_qty')}，可执行数量 "
+                f"{item.get('accepted_qty', 0)}）"
+            )
         lines.append(
-            f"- 跳过 `{item.get('symbol')}` `{item.get('action')}`：`{item.get('reason')}`"
+            f"- 跳过 `{item.get('symbol')}` `{item.get('action')}`："
+            f"`{item.get('reason')}`{quantity}"
         )
 
     lines.extend(["", "### 本轮订单结果", ""])
@@ -213,6 +244,22 @@ def _execution_section(path: Path, receipt: dict[str, Any]) -> list[str]:
             )
     else:
         lines.append("- 本轮没有向富途提交订单。")
+
+    lines.extend(["", "### 未终态订单", ""])
+    unresolved = receipt.get("unresolved_orders") or []
+    if unresolved:
+        lines.extend([
+            "| 订单号 | 标的 | 动作 | 状态 | 已成交 |",
+            "|---|---|---:|---|---:|",
+        ])
+        for item in unresolved:
+            lines.append(
+                f"| {item.get('order_id') or '-'} | {item.get('symbol') or item.get('futu_code')} | "
+                f"{item.get('action')} | {item.get('status')} | {item.get('dealt_qty', 0)} |"
+            )
+        lines.append("- 存在未终态订单，本次对账必须保持 `ATTENTION_REQUIRED`；不会自动重发。")
+    else:
+        lines.append("- 无。")
 
     lines.extend(["", "### 持仓回读", ""])
     positions = receipt.get("positions_after") or []
