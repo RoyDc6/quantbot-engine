@@ -95,6 +95,9 @@ def test_report_combines_same_run_signal_and_execution(tmp_path):
     )
     text = Path(result["report_path"]).read_text(encoding="utf-8")
     assert result["status"] == "REPORT_READY"
+    assert Path(result["report_path"]).parent.name == run_id
+    assert Path(result["canonical_report_path"]).is_file()
+    assert Path(result["report_path"]).read_bytes() == Path(result["canonical_report_path"]).read_bytes()
     assert "## Northstar-D1 信号报告" in text
     assert "| AMD.US | BUY |" in text
     assert "## Futu 模拟执行与对账" in text
@@ -124,6 +127,26 @@ def test_execution_section_never_substitutes_before_account_for_missing_after_sn
     assert "不能用执行前现金替代" in text
     assert "存在未终态订单" in text
     assert "不会自动重发" in text
+
+
+def test_execution_section_shows_delivery_reconciliation_and_account_risk(tmp_path):
+    lines = _execution_section(tmp_path / "reconcile.json", {
+        "receipt_kind": "RECONCILIATION_REFRESH",
+        "reconciliation": "ATTENTION_REQUIRED",
+        "order_reconciliation": "PASS",
+        "account_risk_flags": ["NEGATIVE_CASH"],
+        "reconciliation_refreshed_at_utc": "2026-09-23T02:00:00+00:00",
+        "account_before": {"cash": -10},
+        "account_after": {"total_assets": 100_000, "cash": -10},
+        "results": [],
+        "unresolved_orders": [],
+        "positions_after": [],
+    })
+    text = "\n".join(lines)
+
+    assert "订单终态对账：`PASS`" in text
+    assert "账户风险提示：`NEGATIVE_CASH`" in text
+    assert "未下单、撤单或改单" in text
 
 
 def test_failed_signal_report_never_falls_back_to_old_execution(tmp_path):

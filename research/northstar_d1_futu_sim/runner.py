@@ -304,6 +304,123 @@ def _reconcile_existing_orders(
         journal.close()
 
 
+def refresh_execution_receipt(
+    market: str,
+    execution_receipt: str | Path,
+    *,
+    receipts_dir: Path = RECEIPTS,
+    adapter_factory=FutuAdapter,
+    now_utc: datetime | None = None,
+) -> dict[str, Any]:
+    """Refresh broker terminal state without submitting, amending, or cancelling.
+
+    The original execution receipt stays immutable.  This function reconciles
+    the local journal from Futu SIMULATE, captures a fresh account/position
+    snapshot, and writes a separate reconciliation receipt for reporting.
+    """
+    market = market.upper()
+    if market not in {"HK", "US"}:
+        raise ValueError("market must be HK or US")
+    source_path = Path(execution_receipt).resolve()
+    receipt_root = receipts_dir.resolve()
+    try:
+        source_path.relative_to(receipt_root)
+    except ValueError as exc:
+        raise RuntimeError(f"{market} execution receipt is outside receipt root") from exc
+    if not source_path.is_file():
+        raise RuntimeError(f"{market} execution receipt is missing")
+
+    original = _read_json(source_path)
+    if (
+        original.get("mode") != "FUTU_SIM_FORWARD"
+        or str(original.get("market") or "").upper() != market
+        or original.get("real_trading_allowed") is not False
+    ):
+        raise RuntimeError(f"{market} execution receipt identity mismatch")
+
+    adapter = adapter_factory()
+    connected, connection_message = adapter.test_connection(timeout=1.5)
+    if not connected:
+        raise RuntimeError(connection_message)
+
+    results = [dict(item) for item in original.get("results") or []]
+    unresolved = _reconcile_existing_orders(market, adapter, results)
+    snapshot_errors: list[str] = []
+    try:
+        account_query = adapter.get_account_info(market)
+        account_after = account_query.data if account_query.ok else None
+        if not account_query.ok:
+            snapshot_errors.append(
+                f"ACCOUNT_AFTER_FAILED: {getattr(account_query, 'error', '') or 'unknown error'}"
+            )
+    except Exception as exc:
+        account_after = None
+        snapshot_errors.append(f"ACCOUNT_AFTER_FAILED: {exc}")
+    try:
+        positions_query = adapter.get_positions(market)
+        positions_after = positions_query.data if positions_query.ok else None
+        if not positions_query.ok:
+            snapshot_errors.append(
+                f"POSITIONS_AFTER_FAILED: {getattr(positions_query, 'error', '') or 'unknown error'}"
+            )
+    except Exception as exc:
+        positions_after = None
+        snapshot_errors.append(f"POSITIONS_AFTER_FAILED: {exc}")
+
+    statuses = [str(item.get("status") or "") for item in results]
+    nonterminal = sorted(set(statuses) & OrderStatus.blocking_set())
+    uncertain = sorted(set(statuses) & OrderStatus.uncertain_set())
+    risk_flags: list[str] = []
+    if account_after is not None and float(account_after.get("cash") or 0) < -1e-6:
+        risk_flags.append("NEGATIVE_CASH")
+    if account_after is not None and float(account_after.get("total_assets") or 0) <= 0:
+        risk_flags.append("NON_POSITIVE_TOTAL_ASSETS")
+
+    order_reconciliation = (
+        "ATTENTION_REQUIRED"
+        if unresolved or nonterminal or uncertain or snapshot_errors
+        else "PASS"
+    )
+    overall_reconciliation = (
+        "ATTENTION_REQUIRED"
+        if order_reconciliation != "PASS" or risk_flags
+        else "PASS"
+    )
+    captured = now_utc or datetime.now(timezone.utc)
+    refreshed = dict(original)
+    refreshed.update({
+        "schema_version": "1.2",
+        "receipt_kind": "RECONCILIATION_REFRESH",
+        "source_execution_receipt": str(source_path),
+        "source_execution_sha256": _sha256(source_path),
+        "connection": connection_message,
+        "results": results,
+        "unresolved_orders": unresolved,
+        "positions_after": positions_after,
+        "account_after": account_after,
+        "post_execution_snapshot_at_utc": captured.isoformat(),
+        "post_execution_snapshot_errors": snapshot_errors,
+        "order_reconciliation": order_reconciliation,
+        "account_risk_flags": risk_flags,
+        "reconciliation": overall_reconciliation,
+        "uncertain_statuses": uncertain,
+        "nonterminal_statuses": nonterminal,
+        "reconciliation_refreshed_at_utc": captured.isoformat(),
+        "broker_mutation_allowed": False,
+    })
+    receipts_dir.mkdir(parents=True, exist_ok=True)
+    stamp = captured.astimezone().strftime("%Y%m%dT%H%M%S%f")
+    receipt_path = receipts_dir / f"{stamp}_{market.lower()}_reconcile.json"
+    tmp = receipt_path.with_suffix(".tmp")
+    tmp.write_text(
+        json.dumps(refreshed, ensure_ascii=False, indent=2, default=str),
+        encoding="utf-8",
+    )
+    os.replace(tmp, receipt_path)
+    refreshed["receipt_path"] = str(receipt_path)
+    return refreshed
+
+
 def run(
     market: str,
     execute_sim: bool = False,

@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 
 import pytest
 from pathlib import Path
@@ -7,8 +8,10 @@ from research.northstar_d1_futu_sim.runner import (
     _apply_cash_budget,
     _reserve_source,
     build_orders,
+    refresh_execution_receipt,
     run,
 )
+import research.northstar_d1_futu_sim.runner as runner_module
 
 
 def _payload(intents):
@@ -345,3 +348,66 @@ def test_missing_account_after_requires_attention(monkeypatch, tmp_path):
         "ACCOUNT_AFTER_FAILED: unknown error"
     ]
     assert receipt["reconciliation"] == "ATTENTION_REQUIRED"
+
+
+def test_refresh_execution_receipt_updates_terminal_state_and_flags_negative_cash(
+    monkeypatch, tmp_path
+):
+    receipts = tmp_path / "receipts"
+    receipts.mkdir()
+    source = receipts / "source_us_execute.json"
+    source.write_text(json.dumps({
+        "schema_version": "1.1",
+        "mode": "FUTU_SIM_FORWARD",
+        "market": "US",
+        "real_trading_allowed": False,
+        "results": [{
+            "intent_id": "intent-1",
+            "order_id": "1",
+            "status": "SUBMITTED",
+            "dealt_qty": 0,
+        }],
+        "unresolved_orders": [{"order_id": "1", "status": "SUBMITTED"}],
+    }), encoding="utf-8")
+
+    class Query:
+        def __init__(self, data):
+            self.ok = True
+            self.data = data
+
+    class Adapter:
+        def test_connection(self, timeout):
+            return True, "ok"
+
+        def get_account_info(self, market):
+            return Query({"total_assets": 100_000, "cash": -25})
+
+        def get_positions(self, market):
+            return Query([{"symbol": "NVDA.US", "qty": 10}])
+
+    def reconcile(market, adapter, results=None):
+        results[0].update({
+            "status": "FILLED_ALL",
+            "futu_status": "FILLED_ALL",
+            "dealt_qty": 10,
+            "dealt_avg_price": 100,
+        })
+        return []
+
+    monkeypatch.setattr(runner_module, "_reconcile_existing_orders", reconcile)
+    result = refresh_execution_receipt(
+        "US",
+        source,
+        receipts_dir=receipts,
+        adapter_factory=Adapter,
+        now_utc=datetime(2026, 9, 23, 2, 0, tzinfo=timezone.utc),
+    )
+
+    assert result["receipt_kind"] == "RECONCILIATION_REFRESH"
+    assert result["results"][0]["status"] == "FILLED_ALL"
+    assert result["order_reconciliation"] == "PASS"
+    assert result["account_risk_flags"] == ["NEGATIVE_CASH"]
+    assert result["reconciliation"] == "ATTENTION_REQUIRED"
+    assert result["broker_mutation_allowed"] is False
+    assert Path(result["receipt_path"]).is_file()
+    assert Path(result["receipt_path"]) != source

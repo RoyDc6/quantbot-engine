@@ -107,6 +107,7 @@ def render_demo(a):
     lines += ['', '## OKX 模拟盘订单与对账', '',
               f"执行状态：{e['status']}；本轮新接受模拟订单：{e.get('new_orders',0)}；实盘订单：0。",
               f"重复抑制：{e.get('duplicate_suppressed',False)}；余额对账：{e.get('reconciliation',{}).get('status','未完成')}；风险达标：{e.get('risk_resolved','未完成')}。",
+              '信号动作与执行侧风险调整分开记录：HOLD 表示没有新的 alpha 动作；若现有暴露超过单标的/总暴露上限或需预留执行成本，仍可能产生减仓单，该订单属于 RISK_CAP_REBALANCE，不是 SELL 信号。',
               '下表为持久化批次回报；重复运行展示历史回报，不代表本轮再次下单。订单接受不等于成交；撤销的 IOC 也可能部分成交。', '',
               '| 标的 | 方向 | 委托数量 | 累计成交 | 均价 | 手续费（原币种，有符号） | 状态 | OKX ordId |', '|---|---|---:|---:|---:|---|---|---|']
     for o in e.get('orders',[]):
@@ -117,16 +118,34 @@ def render_demo(a):
     if e.get('error'):
         lines += ['', '执行说明：' + e['error']]
     if e.get('plans'):
-        lines += ['', '| 标的 | 当前数量 | 目标权重 | 目标数量 | 计划状态 |', '|---|---:|---:|---:|---|']
+        lines += ['', '| 标的 | 信号动作 | 当前数量 | 目标权重 | 目标数量 | 计划状态 | 调整性质 |', '|---|---|---:|---:|---:|---|---|']
         for p in e['plans']:
-            lines.append(f"| {p['symbol']} | {p['current_qty']:.10f} | {p['target_weight']:.2%} | {p['target_qty']:.10f} | {p['status']} |")
+            adjustment = '—'
+            if p.get('action') == 'HOLD' and abs(float(p.get('delta_qty') or 0)) > 1e-12:
+                adjustment = 'RISK_CAP_REBALANCE（非 SELL 信号）'
+            lines.append(f"| {p['symbol']} | {p.get('action','—')} | {p['current_qty']:.10f} | {p['target_weight']:.2%} | {p['target_qty']:.10f} | {p['status']} | {adjustment} |")
     lines += ['', '## 历史诊断', '', '以下为本地历史回放，费用使用研究假设；不是 OKX 模拟盘成交收益，也不是样本外结论。']
     comparison = a.get('comparison',{})
     if comparison.get('results'):
         lines += ['', '| 版本 | 成本后收益 | 最大回撤 | 本地模拟成交数 |', '|---|---:|---:|---:|']
         for r in comparison['results']:
             lines.append(f"| {r['variant']} | {r['total_return']:.2%} | {r['max_drawdown']:.2%} | {r['simulated_fills']} |")
+        benchmarks = comparison.get('benchmarks') or {}
+        if benchmarks:
+            lines += ['', '| 基准 | 收益 | 口径 |', '|---|---:|---|']
+            if 'cash_return' in benchmarks:
+                lines.append(f"| 现金 | {benchmarks['cash_return']:.2%} | 未投资基准 |")
+            if 'equal_weight_buy_hold_gross' in benchmarks:
+                lines.append(f"| 五标的等权买入持有 | {benchmarks['equal_weight_buy_hold_gross']:.2%} | 毛收益，未按策略暴露/风险匹配 |")
+                full = next((r for r in comparison['results'] if r.get('variant') == 'northstar_full'), comparison['results'][-1])
+                gap = full['total_return'] - benchmarks['equal_weight_buy_hold_gross']
+                lines.append(f"\nNorthstar full 相对等权买入持有差额：{gap:+.2%}；该差额仅作诊断，不能解释为风险调整后超额收益。")
+        returns = [round(float(r['total_return']), 12) for r in comparison['results']]
+        if len(set(returns)) == 1 and len(returns) > 1:
+            lines.append('本窗口内三个变体结果完全相同；当前样本没有显示 Structure/Sequence 改变最终交易结果。')
         lines += [f"评估 {comparison['evaluation_days']} 日；确认日线后使用下一根开盘加成本；详细曲线见 artifact.json。"]
+        for limitation in comparison.get('limitations') or []:
+            lines.append(f"- 限制：{limitation}")
     else:
         lines += [comparison.get('error','本轮未请求历史比较。')]
     lines += ['', '## LLM 辅助与验证', '', f"LLM 状态：{a['llm']['status']}；仓位影响：0。"]

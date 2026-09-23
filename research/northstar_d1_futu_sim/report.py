@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -185,9 +186,23 @@ def _execution_section(path: Path, receipt: dict[str, Any]) -> list[str]:
         f"- 执行后模拟账户资产：{_money(account.get('total_assets'))}",
         f"- 执行后模拟账户现金：{_money(account.get('cash'))}",
         "",
+    ]
+    order_reconciliation = receipt.get("order_reconciliation")
+    if order_reconciliation:
+        lines.append(f"- 订单终态对账：`{order_reconciliation}`")
+    risk_flags = receipt.get("account_risk_flags") or []
+    if risk_flags:
+        lines.append(f"- 账户风险提示：`{', '.join(str(flag) for flag in risk_flags)}`")
+    if receipt.get("receipt_kind") == "RECONCILIATION_REFRESH":
+        lines.extend([
+            f"- 交付前只读刷新：`{receipt.get('reconciliation_refreshed_at_utc') or 'N/A'}`",
+            "- 本次刷新只读取 Futu SIMULATE 并更新本地 journal/回执；未下单、撤单或改单。",
+        ])
+    lines.extend([
+        "",
         "### 本轮计划与跳过项",
         "",
-    ]
+    ])
     if account_after is None:
         lines.extend(["- ⚠️ 回执缺少执行后账户快照，不能用执行前现金替代。", ""])
     for error in receipt.get("post_execution_snapshot_errors") or []:
@@ -382,19 +397,38 @@ def build_report(
 
     reports_dir.mkdir(parents=True, exist_ok=True)
     suffix = f"_{market.lower()}" if market else ""
-    report_path = reports_dir / f"{report_date.isoformat()}_northstar_d1_futu_sim{suffix}_daily.md"
+    filename = f"{report_date.isoformat()}_northstar_d1_futu_sim{suffix}_daily.md"
+    if market:
+        immutable_id = str(evidence[market]["run_id"])
+    else:
+        immutable_id = "combined_" + hashlib.sha256(
+            "|".join(item["run_id"] for item in evidence.values()).encode("utf-8")
+        ).hexdigest()[:16]
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", immutable_id):
+        raise RuntimeError("report run id is not path-safe")
+    immutable_dir = reports_dir / "runs" / immutable_id
+    immutable_dir.mkdir(parents=True, exist_ok=True)
+    report_path = immutable_dir / filename
+    canonical_path = reports_dir / filename
     content = "\n".join(lines)
     tmp = report_path.with_suffix(".tmp")
     tmp.write_text(content, encoding="utf-8")
     os.replace(tmp, report_path)
+    canonical_tmp = canonical_path.with_suffix(".tmp")
+    canonical_tmp.write_text(content, encoding="utf-8")
+    os.replace(canonical_tmp, canonical_path)
     digest = hashlib.sha256(report_path.read_bytes()).hexdigest().upper()
     return {
         "status": "REPORT_READY",
         "report_path": str(report_path),
+        "canonical_report_path": str(canonical_path),
         "sha256": digest,
         "present_files_count": 1,
         "present_only_this_markdown": True,
         "markets": list(selected_markets),
+        "run_ids": {
+            selected: evidence[selected]["run_id"] for selected in selected_markets
+        },
         "forward_statuses": {
             selected: evidence[selected]["forward"].get("status")
             for selected in selected_markets

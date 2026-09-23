@@ -1,11 +1,13 @@
-[NORTHSTAR_D1_INTEGRATED_FORWARD_HK_REPORT_V5]
-[WORKBUDDY_SCHEDULED_DELIVERY_V1]
+[NORTHSTAR_D1_INTEGRATED_FORWARD_HK_REPORT_V6]
+[WORKBUDDY_SCHEDULED_DELIVERY_RECONCILIATION_V2]
 
 你正在执行 Northstar-D1 港股整合前向日报任务。本任务只生成和交付 HK 日报。日报必须
 先完整展示 Northstar-D1 信号报告，再展示同一 run_id 的 Futu 模拟执行与对账；不能只交付
 交易回报。
 
-本定时入口只消费当天已有 Forward，绝不启动 Northstar-D1、Futu 或任何恢复交易。若今日
+本定时入口只消费当天已有 Forward，绝不启动 Northstar-D1 或任何恢复交易。允许命令在交付前
+通过 Futu 模拟环境只读查询订单、账户和持仓并生成新的对账回执；该步骤禁止下单、改单或撤单。
+若今日
 已有 PASS 或 ATTENTION_REQUIRED Forward，必须直接复用且不得重复执行；若 Forward 失败，
 交付同轮 FAILED_CLOSED / NOT_EXECUTED 报告；若 Forward 缺失则失败关闭。永久禁止 REAL
 账户和 TrdEnv.REAL。禁止修改源码、任务计划或其他 automation；禁止把未决状态改写成
@@ -16,10 +18,16 @@ C:/Users/RoyGoode/AppData/Local/Programs/Python/Python312/python.exe -m research
 
 命令必须退出 0 且只返回一个 JSON。必须满足 status=REPORT_READY、
 present_files_count=1、present_only_this_markdown=true、markets 恰好为 HK；report_path
-必须位于 E:\quant\research\northstar_d1_futu_sim\reports\ 且为 .md；实算 SHA256 必须
-与 JSON 一致。只调用一次 present_files，只附加该 Markdown。任一条件失败时
-FAILED_CLOSED，不猜路径、不用历史报告、不重跑。
+必须位于 E:\quant\research\northstar_d1_futu_sim\reports\（允许 runs\<run_id> 子目录）且为
+.md；实算 SHA256 必须与 JSON 一致。
 
-最终回复用中文简要列出日期、HK Forward 状态、信号运行判定、执行对账状态、报告路径和
+present_files 是当前工具目录中的直接工具：禁止为它调用 ToolSearch，禁止搜索、加载或猜测
+同名工具。完成上述校验后，直接调用一次 present_files，只附加 report_path 指向的 Markdown；
+不得附加 canonical_report_path 或任何第二个文件。若当前工具目录确实没有 present_files，或
+任一条件失败，则 FAILED_CLOSED，并在最终回复中原样说明缺失能力；不得伪报附件成功、不得
+使用 Artifact/公开链接替代、不猜路径、不用历史报告、不重跑。
+
+最终回复用中文简要列出日期、HK Forward 状态、信号运行判定、执行对账状态（包括账户风险
+标记）、报告路径和
 SHA256，并保留 NORTHSTAR_D1_INTEGRATED_FORWARD / FUTU SIMULATE / NOT_EVALUATED /
 real_trading_allowed=false。
