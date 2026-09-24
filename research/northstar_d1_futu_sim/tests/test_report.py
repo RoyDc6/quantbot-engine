@@ -96,6 +96,7 @@ def test_report_combines_same_run_signal_and_execution(tmp_path):
     text = Path(result["report_path"]).read_text(encoding="utf-8")
     assert result["status"] == "REPORT_READY"
     assert Path(result["report_path"]).parent.name == run_id
+    assert result["sha256"] in Path(result["report_path"]).stem
     assert Path(result["canonical_report_path"]).is_file()
     assert Path(result["report_path"]).read_bytes() == Path(result["canonical_report_path"]).read_bytes()
     assert "## Northstar-D1 信号报告" in text
@@ -105,6 +106,46 @@ def test_report_combines_same_run_signal_and_execution(tmp_path):
     assert "执行前模拟账户现金：90,000.00" in text
     assert "执行后模拟账户现金：80,000.00" in text
     assert "real_trading_allowed=false" in text
+
+
+def test_report_refresh_preserves_prior_run_version(tmp_path):
+    market = "HK"
+    run_id = "RUN-HK-VERSIONED"
+    artifacts = _research_artifacts(tmp_path / "northstar", market, run_id)
+    receipts = tmp_path / "receipts"
+    original = _execution_receipt(receipts, market, run_id, Path(artifacts["json"]))
+    forward = _forward_receipt(
+        tmp_path / "forward", market, run_id, artifacts,
+        execution_receipt=str(original), reconciliation="PASS",
+    )
+    options = {
+        "market": market,
+        "forward_receipts_dir": tmp_path / "forward",
+        "receipts_dir": receipts,
+        "reports_dir": tmp_path / "reports",
+        "northstar_output": tmp_path / "northstar",
+        "now": datetime(2026, 9, 16, 10, tzinfo=timezone.utc),
+    }
+    first = build_report(**options)
+    first_bytes = Path(first["report_path"]).read_bytes()
+    assert build_report(**options)["report_path"] == first["report_path"]
+
+    refreshed = receipts / "20260916_hk_reconcile.json"
+    refreshed_data = json.loads(original.read_text(encoding="utf-8"))
+    refreshed_data["receipt_kind"] = "RECONCILIATION_REFRESH"
+    refreshed_data["reconciliation_refreshed_at_utc"] = "2026-09-16T02:00:00+00:00"
+    refreshed_data["account_after"]["cash"] = 70_000
+    refreshed.write_text(json.dumps(refreshed_data), encoding="utf-8")
+    forward_data = json.loads(forward.read_text(encoding="utf-8"))
+    forward_data["execution_receipt"] = str(refreshed)
+    forward.write_text(json.dumps(forward_data), encoding="utf-8")
+
+    second = build_report(**options)
+    assert second["report_path"] != first["report_path"]
+    assert Path(first["report_path"]).read_bytes() == first_bytes
+    assert hashlib.sha256(first_bytes).hexdigest().upper() == first["sha256"]
+    assert hashlib.sha256(Path(second["report_path"]).read_bytes()).hexdigest().upper() == second["sha256"]
+    assert Path(second["canonical_report_path"]).read_bytes() == Path(second["report_path"]).read_bytes()
 
 
 def test_execution_section_never_substitutes_before_account_for_missing_after_snapshot(tmp_path):
@@ -250,5 +291,6 @@ def test_single_market_report_uses_forward_market_session_date(tmp_path):
     )
 
     report_path = Path(result["report_path"])
-    assert report_path.name == "2026-09-16_northstar_d1_futu_sim_us_daily.md"
+    assert report_path.name.startswith("2026-09-16_northstar_d1_futu_sim_us_daily_")
+    assert report_path.name.endswith(f"_{result['sha256']}.md")
     assert "（US）· 2026-09-16" in report_path.read_text(encoding="utf-8")

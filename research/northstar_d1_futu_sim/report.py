@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -408,16 +409,36 @@ def build_report(
         raise RuntimeError("report run id is not path-safe")
     immutable_dir = reports_dir / "runs" / immutable_id
     immutable_dir.mkdir(parents=True, exist_ok=True)
-    report_path = immutable_dir / filename
-    canonical_path = reports_dir / filename
     content = "\n".join(lines)
-    tmp = report_path.with_suffix(".tmp")
-    tmp.write_text(content, encoding="utf-8")
-    os.replace(tmp, report_path)
+    content_bytes = content.encode("utf-8")
+    digest = hashlib.sha256(content_bytes).hexdigest().upper()
+    # Each reconciliation snapshot gets its own immutable file.  A repeated
+    # render of identical evidence reuses the same bytes, while later broker
+    # snapshots cannot change an attachment already presented to the user.
+    report_path = immutable_dir / f"{Path(filename).stem}_{digest}.md"
+    canonical_path = reports_dir / filename
+    if report_path.exists():
+        if report_path.read_bytes() != content_bytes:
+            raise RuntimeError("immutable report hash collision or content mismatch")
+    else:
+        # Link a fully written temp file into place without replacing any
+        # existing version, including one created by a concurrent renderer.
+        with tempfile.NamedTemporaryFile(dir=immutable_dir, suffix=".tmp", delete=False) as output:
+            temporary_report = Path(output.name)
+            output.write(content_bytes)
+            output.flush()
+            os.fsync(output.fileno())
+        try:
+            try:
+                os.link(temporary_report, report_path)
+            except FileExistsError:
+                if report_path.read_bytes() != content_bytes:
+                    raise RuntimeError("immutable report hash collision or content mismatch")
+        finally:
+            temporary_report.unlink(missing_ok=True)
     canonical_tmp = canonical_path.with_suffix(".tmp")
-    canonical_tmp.write_text(content, encoding="utf-8")
+    canonical_tmp.write_bytes(content_bytes)
     os.replace(canonical_tmp, canonical_path)
-    digest = hashlib.sha256(report_path.read_bytes()).hexdigest().upper()
     return {
         "status": "REPORT_READY",
         "report_path": str(report_path),

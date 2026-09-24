@@ -66,6 +66,11 @@ WorkBuddy 使用两个互相隔离的任务：HK 工作日 09:50，US 在当前�
 两个任务分别
 运行 `workbuddy_entry --market HK --scheduled-delivery` 与
 `workbuddy_entry --market US --scheduled-delivery`，各自只交付一份
-Markdown。定时入口使用 `--scheduled-delivery`，只读取已有 Forward，绝不发起第二轮交易；
+Markdown。交付前只读刷新 Futu SIMULATE 订单终态与账户快照；交付版 Markdown 存在
+`reports/runs/<run_id>/` 下以内容 SHA256 命名的独立文件，旧版不会被后续对账覆盖。
+Forward 回执的 `report` 字段指向本次交付文件及其 SHA256；旧指针进入
+`report_history`，并标记轮换时哈希能否验证。根目录按日期命名的文件只是便捷副本，
+不得用于核验历史附件。定时入口使用 `--scheduled-delivery`，只读取已有 Forward，
+绝不发起第二轮交易；
 需要即时重跑时使用 Windows Manual 任务。进入冬令时后，US WorkBuddy 时间需同步调整到
 北京时间 22:50。

@@ -1,5 +1,5 @@
-[NORTHSTAR_D1_INTEGRATED_FORWARD_HK_REPORT_V6]
-[WORKBUDDY_SCHEDULED_DELIVERY_RECONCILIATION_V2]
+[NORTHSTAR_D1_INTEGRATED_FORWARD_HK_REPORT_V7]
+[WORKBUDDY_SCHEDULED_DELIVERY_REPORT_HASH_V3]
 
 你正在执行 Northstar-D1 港股整合前向日报任务。本任务只生成和交付 HK 日报。日报必须
 先完整展示 Northstar-D1 信号报告，再展示同一 run_id 的 Futu 模拟执行与对账；不能只交付
@@ -20,6 +20,10 @@ C:/Users/RoyGoode/AppData/Local/Programs/Python/Python312/python.exe -m research
 present_files_count=1、present_only_this_markdown=true、markets 恰好为 HK；report_path
 必须位于 E:\quant\research\northstar_d1_futu_sim\reports\（允许 runs\<run_id> 子目录）且为
 .md；实算 SHA256 必须与 JSON 一致。
+读取 JSON 中 forward_receipt_path 指向的本轮 Forward 回执；其 report.report_path 必须与
+JSON 的 report_path 完全一致，report.sha256 必须与 JSON 的 sha256 及文件实算值完全一致。
+report 字段缺失或不一致时 FAILED_CLOSED，不交付附件。根目录 canonical_report_path 仅是
+便捷副本，不能代替本轮附件。保留旧版本时不得覆盖 runs\<run_id> 中已交付的文件。
 
 present_files 是当前工具目录中的直接工具：禁止为它调用 ToolSearch，禁止搜索、加载或猜测
 同名工具。完成上述校验后，直接调用一次 present_files，只附加 report_path 指向的 Markdown；

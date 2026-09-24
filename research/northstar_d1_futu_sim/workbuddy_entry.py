@@ -7,11 +7,12 @@ import json
 import sys
 from contextlib import redirect_stdout
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from .forward_runner import FORWARD_RECEIPTS, _replace_forward_receipt, run_integrated
-from .report import _latest_forward_receipt, build_report
-from .runner import refresh_execution_receipt
+from .report import REPORTS, _latest_forward_receipt, build_report
+from .runner import _sha256, refresh_execution_receipt
 
 
 REUSABLE_FORWARD_STATUSES = {"PASS", "ATTENTION_REQUIRED"}
@@ -55,6 +56,7 @@ def run(
         expected_local_date=local_now.date(),
     )
     delivery_reconciliation = None
+    previous_report = current.get("report")
     execution_receipt = str(current.get("execution_receipt") or "")
     if current.get("status") in REUSABLE_FORWARD_STATUSES and execution_receipt:
         refreshed = refresh_execution_receipt(market, execution_receipt)
@@ -73,11 +75,43 @@ def run(
             "refreshed_at_utc": refreshed["reconciliation_refreshed_at_utc"],
         }
         current["delivery_reconciliation"] = delivery_reconciliation
+        # Once the evidence changes, the old report reference is no longer a
+        # valid description of this Forward receipt.  Fail closed if rendering
+        # stops between the refreshed receipt and the final report link.
+        current["report"] = None
         _replace_forward_receipt(prior_path, current)
 
-    report = build_report(market=market, now=local_now)
+    try:
+        report = build_report(market=market, now=local_now)
+        if report.get("status") != "REPORT_READY" or report.get("markets") != [market]:
+            raise RuntimeError("delivery report identity mismatch")
+        report_path = Path(str(report["report_path"])).resolve()
+        report_path.relative_to(REPORTS.resolve())
+        if _sha256(report_path) != report["sha256"]:
+            raise RuntimeError("delivery report SHA256 mismatch")
+    except Exception as exc:
+        current["report_error"] = str(exc)
+        _replace_forward_receipt(prior_path, current)
+        raise
+    if isinstance(previous_report, dict) and previous_report != report:
+        prior_reference = dict(previous_report)
+        old_path = Path(str(prior_reference.get("report_path") or ""))
+        try:
+            old_path = old_path.resolve()
+            old_path.relative_to(REPORTS.resolve())
+            prior_reference["verified_at_rotation"] = (
+                old_path.is_file()
+                and _sha256(old_path) == prior_reference.get("sha256")
+            )
+        except (OSError, ValueError):
+            prior_reference["verified_at_rotation"] = False
+        current.setdefault("report_history", []).append(prior_reference)
+    current["report"] = report
+    current["report_error"] = None
+    _replace_forward_receipt(prior_path, current)
     return {
         **report,
+        "forward_receipt_path": str(prior_path),
         "trigger_mode": trigger_mode,
         "prior_forward_status": prior_status,
         "delivery_forward_status": current.get("status"),
