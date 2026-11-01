@@ -1,4 +1,4 @@
-futu-api>=10.9.6908
+futu-api>=10.12.7208
 pandas
 numpy
 matplotlib
